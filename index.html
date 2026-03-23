@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEGAMP — Smart Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & ROOT ── */
+:root{
+  --bg:#07080b;--s1:#0d0f14;--s2:#141720;--s3:#1a1f2c;--s4:#212638;
+  --border:rgba(255,255,255,0.055);--border2:rgba(255,255,255,0.1);
+  --text:#d8dce8;--text2:#7480a0;--text3:#3d4560;
+  --blue:#4f8ef7;--purple:#8b5cf6;--green:#22d38a;--orange:#f59e0b;
+  --red:#ef4444;--yellow:#fbbf24;--cyan:#06b6d4;--teal:#14b8a6;
+  --gblue:rgba(79,142,247,0.1);--T:0.38s cubic-bezier(0.4,0,0.2,1);
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--display:'Syne',sans-serif;
+}
+
+/* LIGHT THEME */
+body.light-theme {
+  --bg:#f0f2f7;--s1:#ffffff;--s2:#edf0f7;--s3:#dde2ee;--s4:#cdd4e8;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#1a1f2e;--text2:#4a5270;--text3:#8892b0;
+  --gblue:rgba(79,142,247,0.1);
+}
+body.light-theme .logo {
+  background:linear-gradient(120deg,#2a6fd4,#6a3cc8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+body.light-theme .mdev-ico { background:var(--s3); }
+body.light-theme .room { border-color:rgba(0,0,0,0.1); }
+body.light-theme .room.has-on { border-color:rgba(79,142,247,.35); box-shadow:0 2px 12px rgba(79,142,247,.08); }
+body.light-theme #map-scroll.day-sky { background:radial-gradient(ellipse at 60% 0%,rgba(180,210,255,.5) 0%,transparent 70%); }
+body.light-theme #map-scroll.night-sky { background:radial-gradient(ellipse at 60% 0%,rgba(30,40,80,.15) 0%,transparent 70%); }
+
+/* Smooth theme transition */
+body, body * { transition:background-color .28s ease, color .28s ease, border-color .28s ease, box-shadow .28s ease; }
+/* Don't transition transform/animation properties */
+.fan-s, .mdev, .flow-dot, .batt-bar-fill, .bf { transition:none !important; }
+
+/* THEME TOGGLE BUTTON */
+.theme-toggle {
+  display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-radius:20px;border:1px solid var(--border2);background:var(--s2);
+  cursor:pointer;transition:var(--T);font-size:.6rem;color:var(--text2);
+  font-family:var(--mono);user-select:none;
+}
+.theme-toggle:hover { border-color:var(--blue);color:var(--blue); }
+.theme-toggle .tt-ico { font-size:.85rem; transition:transform .3s ease; }
+body.light-theme .theme-toggle .tt-ico { transform:rotate(180deg); }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* ── TOPBAR ── */
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 18px;background:var(--s1);border-bottom:1px solid var(--border);
+  flex-shrink:0;gap:10px;min-height:44px;
+}
+.logo{font-family:var(--display);font-size:1.05rem;font-weight:800;letter-spacing:.14em;
+  background:linear-gradient(120deg,#4f8ef7,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+.tb-center{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mbtn{font-family:var(--display);font-size:.58rem;font-weight:700;letter-spacing:.07em;
+  padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--s2);
+  color:var(--text2);cursor:pointer;transition:var(--T);text-transform:uppercase;white-space:nowrap}
+.mbtn:hover{border-color:var(--blue);color:var(--blue)}
+.mbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.mbtn.m-perf.active{background:var(--red);border-color:var(--red)}
+.mbtn.m-save.active{background:var(--green);border-color:var(--green);color:#07080b}
+.mbtn.m-ess.active{background:var(--orange);border-color:var(--orange);color:#07080b}
+.mbtn.m-cust.active{background:var(--purple);border-color:var(--purple)}
+.tb-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.ost{display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--text3);font-family:var(--mono)}
+.odot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .5s}
+.odot.ok{background:var(--green);box-shadow:0 0 6px rgba(34,211,138,.6)}
+.odot.err{background:var(--red)}
+.odot.checking{animation:blink 1s infinite}
+#clock{font-family:var(--mono);font-size:.85rem;color:var(--text)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── 3-COLUMN LAYOUT ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ═══════════════════════════════
+   LEFT — PHONE UI (305px)
+═══════════════════════════════ */
+#phone{width:305px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#pnav{display:flex;padding:10px 12px 0;gap:2px;border-bottom:1px solid var(--border);flex-shrink:0}
+.pnt{flex:1;text-align:center;padding:8px 2px;font-size:.58rem;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;
+  position:relative;bottom:-1px;transition:var(--T)}
+.pnt.active{color:var(--blue);border-color:var(--blue)}
+#pcontent{flex:1;overflow-y:auto;padding:13px;scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
+#pcontent::-webkit-scrollbar{width:3px}
+#pcontent::-webkit-scrollbar-thumb{background:var(--s3)}
+.screen{display:none;animation:fadeUp .25s ease}
+.screen.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* HOME SCREEN CARDS */
+.greeting{font-family:var(--display);font-size:1.15rem;font-weight:700;margin-bottom:2px}
+.greet-sub{font-size:.68rem;color:var(--text2);margin-bottom:12px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.sc{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px}
+.sc-lbl{font-size:.55rem;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.sc-val{font-family:var(--display);font-size:1.15rem;font-weight:700}
+.sc-sub{font-size:.55rem;color:var(--text2);margin-top:1px}
+.bcard{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.bcard-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.bcard-title{font-size:.6rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.bcard-pct{font-family:var(--display);font-size:1.3rem;font-weight:800}
+.bw{background:var(--s3);border-radius:4px;height:7px;overflow:hidden}
+.bf{height:100%;border-radius:4px;transition:width 1.2s ease,background 1s ease;position:relative;overflow:hidden}
+.bf::after{content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{to{left:200%}}
+.bi{display:flex;justify-content:space-between;margin-top:5px;font-size:.58rem;color:var(--text2)}
+.solar-row{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:var(--T)}
+.solar-row:hover{border-color:var(--border2)}
+.sol-l{display:flex;align-items:center;gap:8px}
+.sol-ico{width:32px;height:32px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:var(--T)}
+.sol-ico.on{background:rgba(251,191,36,.12);animation:spulse 2.5s infinite}
+@keyframes spulse{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.4)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
+.sol-name{font-size:.78rem;font-weight:600;margin-bottom:2px}
+.sol-stat{font-size:.6rem;color:var(--text2)}
+.tsw{width:38px;height:20px;background:var(--s3);border-radius:10px;position:relative;cursor:pointer;transition:var(--T);flex-shrink:0}
+.tsw.on{background:var(--green)}
+.tsw::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:3px;left:3px;transition:var(--T);box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.tsw.on::after{left:21px}
+.mbadge{font-family:var(--display);font-size:.6rem;font-weight:700;padding:3px 10px;border-radius:12px;
+  background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.2)}
+
+/* ROOMS */
+.rlist{display:flex;flex-direction:column;gap:5px}
+.rbtn{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:11px 12px;
+  cursor:pointer;transition:var(--T);display:flex;align-items:center;justify-content:space-between}
+.rbtn:hover,.rbtn.sel{border-color:var(--blue);background:var(--gblue)}
+.r-name{font-size:.82rem;font-weight:600;margin-bottom:1px}
+.r-devs{font-size:.6rem;color:var(--text2)}
+.r-cnt{font-family:var(--display);font-size:1rem;font-weight:700;color:var(--blue)}
+
+/* CONTROLS / DEVICE LIST */
+.back-btn{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--text2);cursor:pointer;margin-bottom:12px;transition:color .2s}
+.back-btn:hover{color:var(--text)}
+.ctrl-room{font-family:var(--display);font-size:1.05rem;font-weight:700;margin-bottom:2px}
+.ctrl-sub{font-size:.65rem;color:var(--text2);margin-bottom:13px;font-family:var(--mono)}
+.dlist{display:flex;flex-direction:column;gap:5px}
+.drow{background:var(--s2);border:1px solid var(--border);border-radius:8px;transition:var(--T);overflow:hidden}
+.drow.on{border-color:rgba(79,142,247,.25)}
+.drow-top{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer}
+.drow-l{display:flex;align-items:center;gap:8px}
+.dico{width:32px;height:32px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .4s ease;flex-shrink:0}
+.dico.light-on{background:rgba(251,191,36,.14);box-shadow:0 0 10px rgba(251,191,36,.35)}
+.dico.fan-on{background:rgba(6,182,212,.12);box-shadow:0 0 8px rgba(6,182,212,.25)}
+.dico.ac-on{background:rgba(79,142,247,.14);box-shadow:0 0 10px rgba(79,142,247,.35)}
+.dico.geyser-on{background:rgba(245,158,11,.14);box-shadow:0 0 10px rgba(245,158,11,.35)}
+.d-name{font-size:.8rem;font-weight:600;margin-bottom:1px}
+.d-pow{font-size:.58rem;color:var(--text2);font-family:var(--mono)}
+.ai-drawer{max-height:0;overflow:hidden;transition:max-height .38s ease,opacity .3s ease;opacity:0}
+.ai-drawer.open{max-height:220px;opacity:1}
+.ai-drawer-inner{padding:7px 12px 9px;border-top:1px solid var(--border)}
+.rrow{display:flex;gap:5px;margin-bottom:5px;font-size:.6rem;align-items:flex-start;line-height:1.4}
+.rrow:last-child{margin-bottom:0}
+.rtag{flex-shrink:0;font-family:var(--mono);font-size:.5rem;font-weight:600;padding:2px 5px;border-radius:3px;margin-top:1px;letter-spacing:.04em}
+.rtag.ton{background:rgba(34,211,138,.12);color:var(--green);border:1px solid rgba(34,211,138,.2)}
+.rtag.toff{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.18)}
+.rtag.tai{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid rgba(139,92,246,.2)}
+.rtxt{color:var(--text2)}
+.rtxt.dim{color:var(--text3);font-style:italic}
+
+/* AI SECTION IN PHONE */
+.ai-section{margin-top:12px}
+.ai-sec-title{font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.ai-sec-title .bdot{width:5px;height:5px;border-radius:50%;background:var(--purple);animation:blink 1.8s infinite}
+
+/* MODE BIG BUTTONS */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.mode-big-btn{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:11px 12px;
+  border-radius:10px;border:1.5px solid var(--border2);background:var(--s2);
+  cursor:pointer;transition:var(--T);text-align:left;width:100%;
+}
+.mode-big-btn:hover{border-color:var(--blue);background:var(--gblue)}
+.mode-big-btn.active{border-color:var(--blue);background:rgba(79,142,247,.12)}
+.mode-big-btn.m-perf.active{border-color:var(--red);background:rgba(239,68,68,.1)}
+.mode-big-btn.m-save.active{border-color:var(--green);background:rgba(34,211,138,.1)}
+.mode-big-btn.m-ess.active{border-color:var(--orange);background:rgba(245,158,11,.1)}
+.mode-big-btn.m-cust.active{border-color:var(--purple);background:rgba(139,92,246,.1)}
+.mbig-ico{font-size:1rem;line-height:1;display:block}
+.mbig-lbl{font-family:var(--display);font-size:.78rem;font-weight:700;color:var(--text);line-height:1.2}
+.mbig-sub{font-size:.55rem;color:var(--text3);line-height:1.2}
+.mode-big-btn.active .mbig-sub{color:var(--text2)}
+
+/* MAIN POWER TOGGLE ROW */
+.main-power-row{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s2);border:1.5px solid var(--border2);border-radius:10px;
+  padding:12px 14px;margin-bottom:0;
+}
+.main-power-row.off{border-color:var(--red);background:rgba(239,68,68,.06)}
+
+/* AI STATUS CARD */
+.ai-status-card{
+  background:var(--s2);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:center;gap:10px;transition:var(--T);
+}
+.ai-status-card.thinking{border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.06)}
+.ai-status-icon{font-size:1.3rem;flex-shrink:0}
+.ai-status-body{flex:1;min-width:0}
+.ai-status-mode{font-family:var(--display);font-size:.8rem;font-weight:700;margin-bottom:2px}
+.ai-status-msg{font-size:.62rem;color:var(--text2);line-height:1.4}
+.ai-thinking{display:flex;gap:3px;align-items:center;flex-shrink:0}
+.ai-think-dot{width:5px;height:5px;border-radius:50%;background:var(--purple);animation:thinkpulse 1.2s ease-in-out infinite}
+.ai-think-dot:nth-child(2){animation-delay:.2s}
+.ai-think-dot:nth-child(3){animation-delay:.4s}
+@keyframes thinkpulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.ai-decision-item{
+  display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
+  border-radius:7px;border:1px solid var(--border);background:var(--s2);
+  font-size:.62rem;line-height:1.45;animation:slideIn .3s ease;
+}
+.ai-decision-item.info{border-color:rgba(34,211,138,.18);background:rgba(34,211,138,.04)}
+.ai-decision-item.warn{border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.05)}
+.ai-decision-item.alert{border-color:rgba(239,68,68,.18);background:rgba(239,68,68,.04)}
+.ai-dec-ico{font-size:.85rem;flex-shrink:0;margin-top:1px}
+.ai-dec-txt{color:var(--text);flex:1}
+
+.lentry{background:var(--s1);border:1px solid var(--border);border-radius:5px;padding:6px 8px;font-size:.58rem;line-height:1.42;animation:slideIn .25s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:translateX(0)}}
+.lentry.decision{border-color:rgba(139,92,246,.2)}
+.lentry.alert{border-color:rgba(239,68,68,.18)}
+.lentry.info{border-color:rgba(34,211,138,.13)}
+.lentry.user{border-color:rgba(79,142,247,.16)}
+.ltime{color:var(--text3);font-family:var(--mono);font-size:.5rem;margin-bottom:1px}
+.lmsg{color:var(--text)}
+.ai-log-phone{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
+.ai-log-phone::-webkit-scrollbar{width:3px}
+.ai-log-phone::-webkit-scrollbar-thumb{background:var(--s3)}
+
+/* ═══════════════════════════════
+   CENTER — HOUSE MAP (flex:1)
+═══════════════════════════════ */
+#map-col{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+#map-hdr{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.map-hdr-t{font-family:var(--display);font-size:.68rem;font-weight:700;color:var(--text2);letter-spacing:.1em;text-transform:uppercase}
+#map-scroll{flex:1;overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start;
+  transition:background .8s ease}
+#map-scroll.day-sky{background:radial-gradient(ellipse at 60% 0%,rgba(30,60,130,.3) 0%,transparent 70%)}
+#map-scroll.night-sky{background:radial-gradient(ellipse at 60% 0%,rgba(8,10,30,.9) 0%,transparent 70%)}
+
+/* FLOOR PLAN */
+#floor-plan{position:relative;width:580px;flex-shrink:0}
+
+/* Room blocks — realistic floor plan look */
+.room{
+  position:absolute;background:var(--s1);border:1.5px solid rgba(255,255,255,.1);
+  transition:border-color .4s,box-shadow .4s;overflow:hidden;
+}
+.room::after{
+  content:'';position:absolute;inset:0;opacity:0;transition:opacity .4s;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,rgba(79,142,247,.06) 0%,transparent 70%);
+}
+.room.has-on{border-color:rgba(79,142,247,.22)}
+.room.has-on::after{opacity:1}
+.room-label{
+  font-size:.5rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--text3);padding:5px 7px 3px;border-bottom:1px solid rgba(255,255,255,.04);
+}
+.room-devs{display:flex;flex-wrap:wrap;gap:4px;padding:5px 6px}
+.mdev{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:transform .18s}
+.mdev:hover{transform:scale(1.14)}
+.mdev-ico{
+  width:26px;height:26px;border-radius:5px;background:var(--s2);
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;transition:all .4s ease;
+}
+.mdev-ico.light-on{background:rgba(251,191,36,.14);box-shadow:0 0 10px rgba(251,191,36,.5),0 0 3px rgba(251,191,36,.8)}
+.mdev-ico.fan-on .fan-s{animation:fanspin .7s linear infinite}
+@keyframes fanspin{to{transform:rotate(360deg)}}
+.mdev-ico.ac-on{background:rgba(79,142,247,.14);animation:acpulse 2.5s ease-in-out infinite}
+@keyframes acpulse{0%,100%{box-shadow:0 0 5px rgba(79,142,247,.3)}50%{box-shadow:0 0 16px rgba(79,142,247,.6)}}
+.mdev-ico.geyser-on{background:rgba(245,158,11,.14);animation:gpulse 3s ease-in-out infinite}
+@keyframes gpulse{0%,100%{box-shadow:0 0 5px rgba(245,158,11,.3)}50%{box-shadow:0 0 18px rgba(245,158,11,.6)}}
+.mdev-lbl{font-size:.44rem;color:var(--text3);text-align:center;line-height:1}
+
+/* WALL LINES — decorative separators on floor plan */
+.wall-h{position:absolute;height:1.5px;background:rgba(255,255,255,.08)}
+.wall-v{position:absolute;width:1.5px;background:rgba(255,255,255,.08)}
+
+/* GARAGE BATTERY MINI */
+.garage-batt{
+  margin:4px 6px;padding:5px 7px;background:var(--s2);border:1px solid var(--border);
+  border-radius:5px;display:flex;align-items:center;gap:7px;
+}
+.gb-tower{width:16px;height:26px;background:var(--s3);border-radius:2px;overflow:hidden;position:relative;border:1px solid var(--border2)}
+.gb-fill{position:absolute;bottom:0;left:0;right:0;border-radius:1px;transition:height 1.5s ease,background 1.2s ease}
+.gb-fill.charging{animation:battc .9s ease-in-out infinite alternate}
+@keyframes battc{from{opacity:.85}to{opacity:1;box-shadow:0 0 8px rgba(34,211,138,.6)}}
+.gb-fill.discharging{animation:battd 1.6s ease-in-out infinite alternate}
+@keyframes battd{from{opacity:1}to{opacity:.5}}
+.gb-fill.idle{animation:batti 3s ease-in-out infinite}
+@keyframes batti{0%,100%{opacity:.7}50%{opacity:.95}}
+.gb-info{font-size:.52rem;font-family:var(--mono);line-height:1.5;color:var(--text2)}
+.gb-pct{font-family:var(--display);font-weight:700}
+
+/* Battery bar states — used on .batt-bar-fill (right panel) and .bf (phone bar) */
+.batt-bar-fill,
+.bf {
+  height:100%;border-radius:4px;
+  transition:width 1.2s ease, background 0.8s ease;
+  position:relative;overflow:hidden;
+}
+
+/* CHARGING — bright shimmer moving forward */
+.batt-bar-fill.batt-charging::after,
+.bf.batt-charging::after {
+  content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);
+  animation:shimmer 1.3s linear infinite;
+}
+/* DISCHARGING — dim pulse, subtle drain effect */
+.batt-bar-fill.batt-discharging,
+.bf.batt-discharging {
+  animation:battDrain 1.8s ease-in-out infinite;
+}
+@keyframes battDrain {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.62; }
+}
+/* IDLE — very subtle slow pulse, barely visible */
+.batt-bar-fill.batt-idle,
+.bf.batt-idle {
+  animation:battIdlePulse 3.5s ease-in-out infinite;
+}
+@keyframes battIdlePulse {
+  0%,100% { opacity: 0.72; }
+  50%      { opacity: 0.92; }
+}
+
+/* ═══════════════════════════════
+   RIGHT — ENERGY PANEL (280px)
+═══════════════════════════════ */
+#energy-col{width:280px;flex-shrink:0;background:var(--s1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+
+/* FIXED HEADER — always visible, no tabs */
+#ecol-header{flex-shrink:0;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.ecol-hdr-title{font-family:var(--display);font-size:.62rem;font-weight:700;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.epwr-toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.epwr-toggle{background:var(--s2);border:1.5px solid var(--border2);border-radius:8px;padding:9px 10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:var(--T)}
+.epwr-toggle.active-green{border-color:rgba(34,211,138,.35);background:rgba(34,211,138,.05)}
+.epwr-toggle.active-yellow{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.05)}
+.epwr-toggle.inactive{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.04)}
+.ept-left{display:flex;flex-direction:column;gap:2px}
+.ept-lbl{font-size:.6rem;font-weight:600;color:var(--text)}
+.ept-sub{font-size:.52rem;color:var(--text2)}
+.tsw-sm{width:32px;height:17px;background:var(--s3);border-radius:9px;position:relative;cursor:pointer;transition:var(--T);flex-shrink:0}
+.tsw-sm.on{background:var(--green)}
+.tsw-sm::after{content:'';position:absolute;width:11px;height:11px;background:#fff;border-radius:50%;top:3px;left:3px;transition:var(--T);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tsw-sm.on::after{left:18px}
+
+/* TABS */
+.ecol-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.etab{flex:1;padding:9px 4px;text-align:center;font-size:.56rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;
+  position:relative;bottom:-1px;transition:var(--T)}
+.etab:hover{color:var(--text2)}
+.etab.active{color:var(--blue);border-color:var(--blue)}
+.epane{display:none;flex:1;flex-direction:column;overflow-y:auto;padding:12px;gap:10px;scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
+.epane::-webkit-scrollbar{width:3px}
+.epane::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.epane.active{display:flex}
+.ep-lbl{font-size:.56rem;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.ep-lbl .bdot{width:5px;height:5px;border-radius:50%;animation:blink 1.8s infinite;flex-shrink:0}
+
+/* SUN SLIDER */
+.sun-widget{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.sun-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sun-ico-big{font-size:1.4rem;transition:filter .5s,transform .5s}
+.sun-ico-big.night{filter:grayscale(1) brightness(.3);transform:scale(.8)}
+.sun-state-lbl{font-family:var(--display);font-size:.7rem;font-weight:700}
+.sun-kw{font-family:var(--mono);font-size:.6rem;color:var(--yellow)}
+#sun-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,#0d1020 0%,#1e3060 35%,#f59e0b 65%,#fbbf24 100%);
+  outline:none;cursor:pointer;margin-bottom:8px}
+#sun-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,#fbbf24 60%,#f59e0b 100%);
+  cursor:pointer;box-shadow:0 0 10px rgba(251,191,36,.9);border:2px solid rgba(255,255,255,.3)}
+.preset-row{display:flex;gap:4px}
+.preset-btn{flex:1;padding:5px 2px;border-radius:6px;border:1px solid var(--border);background:var(--s3);
+  font-size:.6rem;cursor:pointer;transition:var(--T);text-align:center;color:var(--text2)}
+.preset-btn:hover{border-color:var(--border2);color:var(--text)}
+.preset-btn.active{border-color:var(--yellow);background:rgba(251,191,36,.1);color:var(--yellow)}
+
+/* ENERGY FLOW DIAGRAM */
+.eflow-diagram{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px}
+.eflow-nodes{display:flex;flex-direction:column;gap:4px}
+.eflow-node{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;
+  background:var(--s3);border-radius:6px;border:1px solid var(--border);transition:border-color .4s}
+.eflow-node.active{border-color:rgba(79,142,247,.3)}
+.eflow-node.solar-active{border-color:rgba(251,191,36,.35)}
+.eflow-node.batt-active{border-color:rgba(34,211,138,.3)}
+.eflow-node.grid-active{border-color:rgba(139,92,246,.3)}
+.efn-left{display:flex;align-items:center;gap:7px}
+.efn-ico{font-size:1rem}
+.efn-name{font-size:.65rem;font-weight:600}
+.efn-sub{font-size:.55rem;color:var(--text2)}
+.efn-val{font-family:var(--mono);font-size:.65rem;font-weight:500;text-align:right}
+
+/* FLOW CONNECTOR */
+.flow-connector{display:flex;align-items:center;justify-content:center;height:16px;position:relative;margin:0 20px}
+.flow-line{flex:1;height:2px;border-radius:1px;position:relative;overflow:hidden}
+.flow-line .flow-dot{
+  position:absolute;top:-3px;width:8px;height:8px;border-radius:50%;
+  animation:flowmove 1.2s linear infinite;opacity:0;
+}
+.flow-line.active .flow-dot{opacity:1}
+.flow-line.solar-line{background:rgba(251,191,36,.2)}
+.flow-line.solar-line .flow-dot{background:var(--yellow);box-shadow:0 0 6px rgba(251,191,36,.8)}
+.flow-line.grid-line{background:rgba(139,92,246,.2)}
+.flow-line.grid-line .flow-dot{background:var(--purple);box-shadow:0 0 6px rgba(139,92,246,.8)}
+.flow-line.batt-line{background:rgba(34,211,138,.2)}
+.flow-line.batt-line .flow-dot{background:var(--green);box-shadow:0 0 6px rgba(34,211,138,.8)}
+@keyframes flowmove{0%{left:-10px;opacity:0}20%{opacity:1}80%{opacity:1}100%{left:100%;opacity:0}}
+.flow-arrow{font-size:.6rem;color:var(--text3);flex-shrink:0;margin:0 4px;transition:color .4s}
+.flow-arrow.active-y{color:var(--yellow)}
+.flow-arrow.active-g{color:var(--green)}
+.flow-arrow.active-p{color:var(--purple)}
+
+/* BATTERY DETAIL */
+.batt-detail{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.batt-detail-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.batt-detail-nm{font-size:.62rem;color:var(--text2);font-weight:500}
+.batt-detail-pct{font-family:var(--display);font-size:1.1rem;font-weight:800}
+.batt-bar-wrap{background:var(--s3);border-radius:4px;height:8px;overflow:hidden;margin-bottom:6px}
+.batt-bar-fill{height:100%;border-radius:4px;transition:width 1.2s ease,background 1s ease;position:relative;overflow:hidden}
+.batt-bar-fill::after{content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:shimmer 2s infinite}
+.batt-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.batt-stat-item{background:var(--s3);border-radius:5px;padding:5px 7px}
+.bsi-lbl{font-size:.5rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.bsi-val{font-family:var(--mono);font-size:.62rem;font-weight:500}
+.bsi-val.green{color:var(--green)}
+.bsi-val.yellow{color:var(--yellow)}
+.bsi-val.purple{color:var(--purple)}
+.bsi-val.red{color:var(--red)}
+
+/* POWER REFERENCE TABLE */
+.pref-card{background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.pref-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-bottom:1px solid var(--border);font-size:.58rem}
+.pref-row:last-child{border-bottom:none}
+.pref-name{color:var(--text2)}
+.pref-val{font-family:var(--mono);color:var(--text)}
+
+/* CUSTOM MODAL */
+#cmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center}
+#cmodal.open{display:flex}
+.mbox{background:var(--s1);border:1px solid var(--border2);border-radius:14px;padding:20px;width:350px;max-height:78vh;overflow-y:auto}
+.m-title{font-family:var(--display);font-size:.95rem;font-weight:700;margin-bottom:2px}
+.m-sub{font-size:.68rem;color:var(--text2);margin-bottom:13px}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:15px}
+.m-item{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 9px;cursor:pointer;transition:var(--T);font-size:.68rem;display:flex;align-items:center;gap:6px}
+.m-item.sel{border-color:var(--blue);background:var(--gblue);color:var(--blue)}
+.m-acts{display:flex;gap:7px}
+.m-btn{flex:1;padding:8px;border-radius:7px;font-size:.7rem;font-weight:600;cursor:pointer;border:none;transition:var(--T)}
+.m-btn.pri{background:var(--blue);color:#fff}
+.m-btn.sec{background:var(--s2);color:var(--text2);border:1px solid var(--border)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div id="topbar">
+  <div class="logo">⌂ MEGAMP</div>
+  <div class="tb-right">
+    <div class="ost"><div class="odot checking" id="odot"></div><span id="olbl">llama3</span></div>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+      <span class="tt-ico" id="theme-ico">🌙</span>
+      <span id="theme-lbl">Light</span>
+    </div>
+    <span id="clock">--:--</span>
+  </div>
+</div>
+
+<!-- ── 3-COLUMN MAIN ── -->
+<div id="main">
+
+<!-- ══════════════════════════════
+     LEFT — PHONE UI
+══════════════════════════════ -->
+<div id="phone">
+  <div id="pnav">
+    <div class="pnt active"              onclick="showS('home',this)">Home</div>
+    <div class="pnt"                     onclick="showS('rooms',this)">Rooms</div>
+    <div class="pnt" id="ctrl-tab" style="display:none" onclick="showS('controls',this)">Controls</div>
+    <div class="pnt"                     onclick="showS('ai',this)">AI</div>
+  </div>
+  <div id="pcontent">
+
+    <!-- HOME -->
+    <div class="screen active" id="s-home">
+      <div class="greeting" id="greeting-text">Good morning ☀️</div>
+      <div class="greet-sub" id="greet-sub">All systems nominal · Bengaluru</div>
+
+      <!-- MODE BUTTONS — large, elderly-friendly -->
+      <div style="font-size:.58rem;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px">Power Mode</div>
+      <div class="mode-grid">
+        <button class="mode-big-btn active" id="mb-normal"      onclick="setMode('normal',this)">
+          <span class="mbig-ico">✅</span><span class="mbig-lbl">Normal</span>
+          <span class="mbig-sub">Balanced usage</span>
+        </button>
+        <button class="mode-big-btn m-perf" id="mb-performance" onclick="setMode('performance',this)">
+          <span class="mbig-ico">⚡</span><span class="mbig-lbl">Performance</span>
+          <span class="mbig-sub">All devices ON</span>
+        </button>
+        <button class="mode-big-btn m-save" id="mb-saver"       onclick="setMode('saver',this)">
+          <span class="mbig-ico">🌿</span><span class="mbig-lbl">Saver</span>
+          <span class="mbig-sub">Lights only</span>
+        </button>
+        <button class="mode-big-btn m-ess"  id="mb-essential"   onclick="setMode('essential',this)">
+          <span class="mbig-ico">🛡️</span><span class="mbig-lbl">Essential</span>
+          <span class="mbig-sub">Critical only</span>
+        </button>
+        <button class="mode-big-btn m-cust" id="mb-custom"      onclick="openCustom()" style="grid-column:1/-1">
+          <span class="mbig-ico">🎛️</span><span class="mbig-lbl">Custom Mode</span>
+          <span class="mbig-sub">Pick devices manually</span>
+        </button>
+      </div>
+
+      <!-- MAIN POWER TOGGLE -->
+      <div class="main-power-row">
+        <div>
+          <div style="font-size:.78rem;font-weight:600">Main Power</div>
+          <div style="font-size:.6rem;color:var(--text2)" id="main-power-sub">Grid available</div>
+        </div>
+        <div class="tsw on" id="main-power-tsw" onclick="toggleMainPower()"></div>
+      </div>
+
+      <div class="sgrid" style="margin-top:10px">
+        <div class="sc"><div class="sc-lbl">Active</div><div class="sc-val" id="s-act">0</div><div class="sc-sub">of <span id="s-tot">0</span> devices</div></div>
+        <div class="sc"><div class="sc-lbl">Load</div><div class="sc-val" id="s-load">0W</div><div class="sc-sub">live draw</div></div>
+        <div class="sc"><div class="sc-lbl">Solar</div><div class="sc-val" id="s-solv">—</div><div class="sc-sub" id="s-sols">offline</div></div>
+        <div class="sc"><div class="sc-lbl">Battery</div><div class="sc-val" id="s-batt">72%</div><div class="sc-sub">Sodium-Ion</div></div>
+      </div>
+      <div class="bcard">
+        <div class="bcard-h"><div class="bcard-title">🔋 Sodium-Ion · 10 kWh</div><div class="bcard-pct" id="p-bpct">72%</div></div>
+        <div class="bw"><div class="bf" id="p-bbar" style="width:72%"></div></div>
+        <div class="bi"><span id="p-bstat">Discharging</span><span id="p-beta">—</span></div>
+      </div>
+      <div class="solar-row" onclick="toggleSolar()">
+        <div class="sol-l">
+          <div class="sol-ico" id="p-sico">☀️</div>
+          <div><div class="sol-name">Tata Power Solar Array</div><div class="sol-stat" id="p-sstat">3.2 kW generating</div></div>
+        </div>
+        <div class="tsw" id="p-stsw"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.68rem;color:var(--text2)">Active Mode</span>
+        <div class="mbadge" id="p-mbadge">Normal</div>
+      </div>
+    </div>
+
+    <!-- ROOMS -->
+    <div class="screen" id="s-rooms">
+      <div style="font-family:var(--display);font-size:.95rem;font-weight:700;margin-bottom:2px">Rooms</div>
+      <div style="font-size:.68rem;color:var(--text2);margin-bottom:11px">Tap to control · tap device row for AI</div>
+      <div class="rlist" id="room-list"></div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="screen" id="s-controls">
+      <div class="back-btn" onclick="goBack()">← Rooms</div>
+      <div class="ctrl-room" id="ctrl-rname">—</div>
+      <div class="ctrl-sub" id="ctrl-rsub">0 active</div>
+      <div class="dlist" id="dlist"></div>
+    </div>
+
+    <!-- AI TAB -->
+    <div class="screen" id="s-ai">
+      <div class="ai-sec-title" style="margin-bottom:10px"><span class="bdot"></span>AI Engine · llama3</div>
+
+      <!-- AI STATUS BADGE -->
+      <div class="ai-status-card" id="ai-status-card">
+        <div class="ai-status-icon" id="ai-status-icon">🤖</div>
+        <div class="ai-status-body">
+          <div class="ai-status-mode" id="ai-status-mode">Normal Mode</div>
+          <div class="ai-status-msg" id="ai-status-msg">Monitoring system...</div>
+        </div>
+        <div class="ai-thinking" id="ai-thinking" style="display:none">
+          <div class="ai-think-dot"></div><div class="ai-think-dot"></div><div class="ai-think-dot"></div>
+        </div>
+      </div>
+
+      <!-- KEY DECISIONS (max 3) -->
+      <div style="font-size:.56rem;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin:10px 0 6px">Key Decisions</div>
+      <div id="ai-decisions" style="display:flex;flex-direction:column;gap:5px">
+        <div class="ai-decision-item info">
+          <span class="ai-dec-ico">📊</span>
+          <span class="ai-dec-txt">Waiting for mode selection...</span>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div style="font-size:.56rem;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin:12px 0 6px;display:flex;align-items:center;gap:5px">
+        <span class="bdot" style="background:var(--blue)"></span>Activity Log
+      </div>
+      <div class="ai-log-phone" id="ai-log"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     CENTER — HOUSE MAP
+══════════════════════════════ -->
+<div id="map-col">
+  <div id="map-hdr">
+    <div class="map-hdr-t">Live Floor Plan</div>
+    <div style="font-size:.6rem;color:var(--text2)">Click any device to toggle</div>
+  </div>
+  <div id="map-scroll" class="day-sky">
+    <div id="floor-plan">
+      <!-- Rooms are positioned absolutely; JS renders devices inside them -->
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     RIGHT — ENERGY PANEL
+══════════════════════════════ -->
+<div id="energy-col">
+
+  <!-- FIXED HEADER: always visible controls -->
+  <div id="ecol-header">
+    <div class="ecol-hdr-title">⚡ Energy Control</div>
+    <div class="epwr-toggles">
+      <!-- MAIN POWER TOGGLE -->
+      <div class="epwr-toggle active-green" id="epwr-main" onclick="toggleMainPower()">
+        <div class="ept-left">
+          <div class="ept-lbl">🔌 Main Power</div>
+          <div class="ept-sub" id="epwr-main-sub">Grid ON</div>
+        </div>
+        <div class="tsw-sm on" id="epwr-main-tsw"></div>
+      </div>
+      <!-- SOLAR TOGGLE -->
+      <div class="epwr-toggle active-yellow" id="epwr-solar" onclick="toggleSolar()">
+        <div class="ept-left">
+          <div class="ept-lbl">☀️ Solar</div>
+          <div class="ept-sub" id="epwr-solar-sub">3.20 kW</div>
+        </div>
+        <div class="tsw-sm on" id="epwr-solar-tsw"></div>
+      </div>
+    </div>
+    <!-- LIVE SUMMARY ROW -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 7px;text-align:center">
+        <div style="font-size:.48rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Solar</div>
+        <div class="bsi-val yellow" id="hdr-solar" style="font-size:.68rem;font-family:var(--mono)">0 kW</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 7px;text-align:center">
+        <div style="font-size:.48rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Load</div>
+        <div class="bsi-val red" id="hdr-load" style="font-size:.68rem;font-family:var(--mono)">0 kW</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 7px;text-align:center">
+        <div style="font-size:.48rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Battery</div>
+        <div class="bsi-val green" id="hdr-batt" style="font-size:.68rem;font-family:var(--mono)">72%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="ecol-tabs">
+    <div class="etab active" onclick="showETab('controls',this)">Controls</div>
+    <div class="etab"        onclick="showETab('flow',this)">Flow</div>
+    <div class="etab"        onclick="showETab('stats',this)">Stats</div>
+  </div>
+
+  <!-- TAB 1: CONTROLS — Sun slider + battery + presets -->
+  <div class="epane active" id="epane-controls">
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--yellow)"></span>Sun Intensity</div>
+      <div class="sun-widget">
+        <div class="sun-top">
+          <div class="sun-ico-big" id="sun-ico">☀️</div>
+          <div>
+            <div class="sun-state-lbl" id="sun-state">Day</div>
+            <div class="sun-kw" id="sun-kw-lbl">3.20 kW</div>
+          </div>
+        </div>
+        <input type="range" id="sun-slider" min="0" max="100" value="75" oninput="onSunSlide(this.value)">
+        <div class="preset-row">
+          <div class="preset-btn" onclick="setPreset(92,'Bright')">☀️ Bright</div>
+          <div class="preset-btn" onclick="setPreset(50,'Cloudy')">☁️ Cloudy</div>
+          <div class="preset-btn" onclick="setPreset(18,'Rainy')">🌧️ Rainy</div>
+          <div class="preset-btn" onclick="setPreset(0,'Night')">🌙 Night</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--green)"></span>Battery · Sodium-Ion 10 kWh</div>
+      <div class="batt-detail">
+        <div class="batt-detail-h">
+          <div class="batt-detail-nm" id="batt-charge-label">Discharging</div>
+          <div class="batt-detail-pct" id="e-bpct">72%</div>
+        </div>
+        <div class="batt-bar-wrap"><div class="batt-bar-fill" id="e-bbar" style="width:72%"></div></div>
+        <div class="bi"><span id="e-bstat">—</span><span id="e-brate">—</span></div>
+        <div class="batt-stats-grid" style="margin-top:8px">
+          <div class="batt-stat-item"><div class="bsi-lbl">Solar Charge</div><div class="bsi-val yellow" id="e-chg-solar">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Discharge</div><div class="bsi-val red" id="e-discharge">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Backup Time</div><div class="bsi-val green" id="e-backup-time">—</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Est. Runtime</div><div class="bsi-val" id="e-runtime">—</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--text3)"></span>Device Power (BEE Rated)</div>
+      <div class="pref-card">
+        <div class="pref-row"><span class="pref-name">💡 Havells LED</span><span class="pref-val">9 W</span></div>
+        <div class="pref-row"><span class="pref-name">🌀 Havells BLDC Fan</span><span class="pref-val">28 W</span></div>
+        <div class="pref-row"><span class="pref-name">❄️ Voltas 1.5T AC</span><span class="pref-val">1,250 W</span></div>
+        <div class="pref-row"><span class="pref-name">🔥 Havells Geyser 15L</span><span class="pref-val">2,000 W</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: FLOW — animated energy flow diagram -->
+  <div class="epane" id="epane-flow">
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--green)"></span>Live Energy Flow</div>
+      <div class="eflow-diagram">
+        <div class="eflow-nodes">
+          <div class="eflow-node" id="fn-solar">
+            <div class="efn-left">
+              <span class="efn-ico">☀️</span>
+              <div><div class="efn-name">Solar Array</div><div class="efn-sub" id="fn-sol-sub">Tata Power 3.5kWp</div></div>
+            </div>
+            <div class="efn-val yellow" id="fn-sol-val">0 kW</div>
+          </div>
+          <div class="flow-connector">
+            <div class="flow-line solar-line" id="fl-sol-inv"><div class="flow-dot"></div></div>
+            <div class="flow-arrow" id="fa-sol-inv">▼</div>
+          </div>
+          <div class="eflow-node" id="fn-inv">
+            <div class="efn-left">
+              <span class="efn-ico">⚡</span>
+              <div><div class="efn-name">Inverter</div><div class="efn-sub" id="fn-inv-sub">DC → AC · 96% eff</div></div>
+            </div>
+            <div class="efn-val blue" id="fn-inv-val">Standby</div>
+          </div>
+          <div class="flow-connector">
+            <div class="flow-line solar-line" id="fl-inv-batt"><div class="flow-dot"></div></div>
+            <div class="flow-arrow" id="fa-inv-batt">▼</div>
+          </div>
+          <div class="eflow-node" id="fn-batt">
+            <div class="efn-left">
+              <span class="efn-ico">🔋</span>
+              <div><div class="efn-name">Battery</div><div class="efn-sub" id="fn-batt-sub">Sodium-Ion 10kWh</div></div>
+            </div>
+            <div class="efn-val green" id="fn-batt-val">72%</div>
+          </div>
+          <div class="flow-connector">
+            <div class="flow-line batt-line" id="fl-batt-house"><div class="flow-dot"></div></div>
+            <div class="flow-arrow" id="fa-batt-house">▼</div>
+          </div>
+          <!-- GRID node — shown when grid is drawing power -->
+          <div class="eflow-node" id="fn-grid" style="display:none">
+            <div class="efn-left">
+              <span class="efn-ico">🔌</span>
+              <div><div class="efn-name">Grid</div><div class="efn-sub" id="fn-grid-sub">BESCOM · 230V/50Hz</div></div>
+            </div>
+            <div class="efn-val purple" id="fn-grid-val">0 kW</div>
+          </div>
+          <div class="flow-connector" id="fc-grid" style="display:none">
+            <div class="flow-line grid-line active" id="fl-grid-house"><div class="flow-dot"></div></div>
+            <div class="flow-arrow active-p">▼</div>
+          </div>
+          <div class="eflow-node" id="fn-house">
+            <div class="efn-left">
+              <span class="efn-ico">🏠</span>
+              <div><div class="efn-name">House Load</div><div class="efn-sub">All rooms combined</div></div>
+            </div>
+            <div class="efn-val red" id="fn-house-val">0 kW</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--orange)"></span>Status</div>
+      <div class="batt-detail">
+        <div id="e-charge-status-text" style="font-size:.63rem;color:var(--text2);line-height:1.7;padding:2px 0">Calculating...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: STATS — grid, load breakdown, solar details -->
+  <div class="epane" id="epane-stats">
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--blue)"></span>Solar Array</div>
+      <div class="batt-detail">
+        <div class="batt-stats-grid">
+          <div class="batt-stat-item"><div class="bsi-lbl">Solar In</div><div class="bsi-val yellow" id="e-solar-in">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Inverter Out</div><div class="bsi-val yellow" id="e-inv-out">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Efficiency</div><div class="bsi-val" id="e-eff">—</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Status</div><div class="bsi-val green" id="e-sol-status">Offline</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--purple)"></span>Grid</div>
+      <div class="batt-detail">
+        <div class="batt-stats-grid">
+          <div class="batt-stat-item"><div class="bsi-lbl">Grid Draw</div><div class="bsi-val purple" id="e-grid-draw">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Grid Status</div><div class="bsi-val green" id="e-grid-status">Standby</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Grid Export</div><div class="bsi-val" id="e-grid-export">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Tariff</div><div class="bsi-val">₹7.5/kWh</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Net Export</div><div class="bsi-val" id="e-net-export">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Grid Charge</div><div class="bsi-val red" id="e-chg-grid">Never</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="ep-lbl"><span class="bdot" style="background:var(--red)"></span>Load Breakdown</div>
+      <div class="batt-detail">
+        <div class="batt-stats-grid">
+          <div class="batt-stat-item"><div class="bsi-lbl">Total Load</div><div class="bsi-val red" id="e-load-total">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">AC Load</div><div class="bsi-val" id="e-load-ac">0 kW</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Lights</div><div class="bsi-val" id="e-load-lights">0 W</div></div>
+          <div class="batt-stat-item"><div class="bsi-lbl">Other</div><div class="bsi-val" id="e-load-other">0 W</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end energy-col -->
+</div><!-- end main -->
+
+<!-- CUSTOM MODAL -->
+<div id="cmodal">
+  <div class="mbox">
+    <div class="m-title">Custom Mode</div>
+    <div class="m-sub">Select which devices to keep ON</div>
+    <div class="m-grid" id="cdev-grid"></div>
+    <div class="m-acts">
+      <button class="m-btn sec" onclick="closeCustom()">Cancel</button>
+      <button class="m-btn pri" onclick="applyCustom()">Apply Custom</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// CONSTANTS — BEE certified Indian brand specs
+// ═══════════════════════════════════════════════════
+const PWR = {
+  light:   9,     // Havells Lumeno LED 9W
+  fan:     28,    // Havells Efficiencia Neo BLDC 1200mm
+  ac:      1250,  // Voltas 1.5T Inverter 5-star (IS 1391)
+  geyser:  2000,  // Havells Instanio 15L storage
+};
+const DICO  = { light:'💡', fan:'🌀', ac:'❄️', geyser:'🔥' };
+const DLBL  = { light:'Light', fan:'Fan', ac:'A/C', geyser:'Geyser' };
+const DBRND = { light:'Havells LED 9W', fan:'Havells BLDC 28W', ac:'Voltas 1.5T 1250W', geyser:'Havells 2000W' };
+
+// ═══════════════════════════════════════════════════
+// ROOMS + FLOOR PLAN LAYOUT
+// ═══════════════════════════════════════════════════
+// Floor plan is 580px wide, ~460px tall
+// Positions: {top, left, width, height} in px
+const ROOMS = [
+  { id:'bed1',    name:'Bedroom 1', icon:'🛏️', devices:['light','fan','ac','geyser'], essential:['light'],
+    style:'top:0;left:0;width:192px;height:120px;border-radius:8px 0 0 0' },
+  { id:'bed2',    name:'Bedroom 2', icon:'🛏️', devices:['light','fan','ac','geyser'], essential:['light'],
+    style:'top:0;left:196px;width:192px;height:120px;border-radius:0' },
+  { id:'bed3',    name:'Bedroom 3', icon:'🛏️', devices:['light','fan','ac','geyser'], essential:[],
+    style:'top:0;left:392px;width:188px;height:120px;border-radius:0 8px 0 0' },
+  { id:'hall1',   name:'Hall 1',    icon:'🏠', devices:['light','fan','ac'],          essential:['light'],
+    style:'top:124px;left:0;width:290px;height:100px;border-radius:0' },
+  { id:'hall2',   name:'Hall 2',    icon:'🏠', devices:['light','fan','ac'],          essential:[],
+    style:'top:124px;left:294px;width:286px;height:100px;border-radius:0' },
+  { id:'kitchen', name:'Kitchen',   icon:'🍳', devices:['light','fan'],               essential:['light'],
+    style:'top:228px;left:0;width:192px;height:100px;border-radius:0 0 0 8px' },
+  { id:'garage',  name:'Garage',    icon:'🚗', devices:['light','fan'],               essential:[],
+    style:'top:228px;left:196px;width:192px;height:100px' },
+  { id:'patio',   name:'Patio',     icon:'🌿', devices:['light'],                     essential:[],
+    style:'top:228px;left:392px;width:188px;height:100px;border-radius:0 0 8px 0' },
+];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+const ST = {
+  devs: {},
+  battery: 72,
+  solar: true,
+  solarW: 3200,
+  sunPosition: 75,
+  isDay: true,
+  gridW: 0,
+  mainPower: true,  // main grid switch
+  battState: 'idle', // 'charging' | 'discharging' | 'idle'
+  mode: 'normal',
+  curRoom: null,
+  customSet: new Set(),
+  ollamaOK: null,
+  optResults: null,
+  devReasons: {},
+  preset: null,
+  aiThinking: false,
+  BATT_CAPACITY_KWH: 10,  // 10kWh battery
+};
+
+ROOMS.forEach(r => r.devices.forEach(d => { ST.devs[`${r.id}:${d}`] = false; }));
+['bed1:light','bed1:fan','hall1:light','hall1:ac','kitchen:light'].forEach(k => { ST.devs[k] = true; });
+
+// ═══════════════════════════════════════════════════
+// OLLAMA
+// ═══════════════════════════════════════════════════
+async function ollamaCall(prompt, sys) {
+  const fullPrompt = sys ? sys + '\n\n' + prompt : prompt;
+  const res = await fetch('http://localhost:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model:'llama3', prompt:fullPrompt, stream:false, options:{ temperature:0.25, num_predict:600 } }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) { throw new Error('HTTP ' + res.status); }
+  const data = await res.json();
+  return (data.response || '').trim();
+}
+
+async function checkOllama() {
+  const dot = document.getElementById('odot');
+  const lbl = document.getElementById('olbl');
+  dot.className = 'odot checking';
+  try {
+    const r = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(4000) });
+    ST.ollamaOK = r.ok;
+    dot.className = 'odot ' + (r.ok ? 'ok' : 'err');
+    lbl.textContent = r.ok ? 'llama3 · live' : 'llama3 · offline';
+    if (r.ok) { aiLog('info', '✅ Ollama llama3 connected and ready'); }
+    else { aiLog('alert', '⚠️ Ollama offline — using simulation'); }
+  } catch(e) {
+    ST.ollamaOK = false;
+    dot.className = 'odot err';
+    lbl.textContent = 'llama3 · offline';
+    aiLog('alert', '⚠️ Ollama not reachable at localhost:11434');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// AUTO AI — triggers on mode change
+// ═══════════════════════════════════════════════════
+async function runAutoAI(modeName) {
+  if (ST.aiThinking) { return; }
+  ST.aiThinking = true;
+
+  // Show thinking state
+  const card = el('ai-status-card');
+  const icon = el('ai-status-icon');
+  const modeEl = el('ai-status-mode');
+  const msgEl = el('ai-status-msg');
+  const thinking = el('ai-thinking');
+  if (card) { card.classList.add('thinking'); }
+  if (icon) { icon.textContent = '🤖'; }
+  if (modeEl) { modeEl.textContent = modeName + ' Mode'; }
+  if (msgEl) { msgEl.textContent = 'Analyzing system...'; }
+  if (thinking) { thinking.style.display = 'flex'; }
+
+  const loadW = getTotalPower();
+  const solW  = ST.isDay ? ST.solarW : 0;
+  const en    = computeEnergy();
+  const onDevs = ROOMS.flatMap(r => r.devices.filter(d => ST.devs[r.id+':'+d]).map(d => r.name+' '+DLBL[d]));
+
+  const sys = 'You are an AI for an Indian smart home. Reply with ONLY a JSON object with keys: "summary" (1 sentence, max 12 words), "decisions" (array of max 3 strings, each max 10 words). No markdown, no other text.';
+  const prompt = 'Mode: ' + modeName + '. Battery: ' + Math.round(ST.battery) + '%, solar: ' + (ST.isDay ? (solW/1000).toFixed(1)+'kW' : 'off') + ', grid: ' + (en.gridW > 0 ? (en.gridW/1000).toFixed(1)+'kW' : 'standby') + ', mainPower: ' + (ST.mainPower ? 'on' : 'off') + ', load: ' + (loadW/1000).toFixed(2) + 'kW. Active: ' + (onDevs.join(', ') || 'none');
+
+  let summary = '', decisions = [];
+
+  if (ST.ollamaOK) {
+    try {
+      const raw = await ollamaCall(prompt, sys);
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        summary = parsed.summary || '';
+        decisions = Array.isArray(parsed.decisions) ? parsed.decisions.slice(0, 3) : [];
+      }
+    } catch(e) {
+      aiLog('alert', 'llama3 error: ' + e.message);
+    }
+  }
+
+  // Fallback simulation if Ollama offline or parse failed
+  if (!summary) {
+    const result = buildAIDecisions(modeName, en, loadW, solW);
+    summary = result.summary;
+    decisions = result.decisions;
+  }
+
+  // Update AI tab
+  if (msgEl) { msgEl.textContent = summary; }
+  if (card) { card.classList.remove('thinking'); }
+  if (thinking) { thinking.style.display = 'none'; }
+
+  const decisionsEl = el('ai-decisions');
+  if (decisionsEl && decisions.length > 0) {
+    decisionsEl.innerHTML = '';
+    const icons = ['✅', '⚡', '🔋'];
+    const types = ['info', 'info', 'warn'];
+    decisions.forEach((dec, i) => {
+      const item = document.createElement('div');
+      item.className = 'ai-decision-item ' + (types[i] || 'info');
+      item.innerHTML = '<span class="ai-dec-ico">' + (icons[i]||'→') + '</span><span class="ai-dec-txt">' + dec + '</span>';
+      decisionsEl.appendChild(item);
+    });
+  }
+
+  aiLog('decision', '🤖 ' + modeName + ': ' + summary);
+  ST.aiThinking = false;
+}
+
+function buildAIDecisions(modeName, en, loadW, solW) {
+  const batt = Math.round(ST.battery);
+  const decisions = [];
+  let summary = '';
+
+  if (modeName === 'Performance') {
+    summary = 'All devices activated for maximum comfort.';
+    decisions.push('All rooms powered on at full capacity');
+    if (en.gridW > 0) { decisions.push('Grid supplying ' + (en.gridW/1000).toFixed(1) + 'kW due to high load'); }
+    else { decisions.push('Solar covering ' + (solW/1000).toFixed(1) + 'kW of load'); }
+    decisions.push('Battery ' + (en.battChargeSolar > 0 ? 'charging from solar surplus' : 'discharging to support load'));
+  } else if (modeName === 'Saver') {
+    summary = 'Non-essential devices turned off to conserve energy.';
+    decisions.push('Only lights active — fans and AC turned off');
+    decisions.push('Battery charging rate improved by ' + Math.round(loadW/10) + '% load reduction');
+    if (ST.isDay && solW > 0) { decisions.push('Solar surplus ' + ((solW - loadW)/1000).toFixed(1) + 'kW feeding battery'); }
+  } else if (modeName === 'Essential') {
+    summary = 'Critical devices only — maximum battery conservation.';
+    decisions.push('Only essential lights active in occupied rooms');
+    decisions.push('All ACs, fans, and geysers turned off');
+    if (batt < 30) { decisions.push('Low battery (' + batt + '%) — essential mode extends runtime'); }
+    else { decisions.push('Battery conserved — estimated ' + Math.round(batt * ST.BATT_CAPACITY_KWH / Math.max(0.1, loadW/1000)) + 'h backup'); }
+  } else if (modeName === 'Normal') {
+    summary = 'System balanced across comfort and efficiency.';
+    if (ST.isDay) { decisions.push('Solar (' + (solW/1000).toFixed(1) + 'kW) covering house load'); }
+    else { decisions.push('Night mode — battery powering house load'); }
+    if (en.gridW > 0) { decisions.push('Grid assisting with ' + (en.gridW/1000).toFixed(1) + 'kW'); }
+    else { decisions.push('Grid on standby — not needed'); }
+    decisions.push('Battery at ' + batt + '% — ' + (en.battChargeSolar > 0 ? 'charging' : 'discharging'));
+  } else {
+    summary = 'Custom configuration applied to selected devices.';
+    decisions.push('User-selected devices active');
+    decisions.push('Load: ' + (loadW/1000).toFixed(2) + 'kW across custom selection');
+    decisions.push('Battery ' + batt + '% — ' + (en.battChargeSolar > 0 ? 'charging' : 'discharging at ' + (en.battDischarge/1000).toFixed(1) + 'kW'));
+  }
+
+  return { summary, decisions };
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN POWER TOGGLE
+// ═══════════════════════════════════════════════════
+function toggleMainPower() {
+  ST.mainPower = !ST.mainPower;
+  // Update right panel header toggle
+  const rToggle = el('epwr-main');
+  const rTsw    = el('epwr-main-tsw');
+  const rSub    = el('epwr-main-sub');
+  if (rTsw)  { ST.mainPower ? rTsw.classList.add('on') : rTsw.classList.remove('on'); }
+  if (rSub)  { rSub.textContent = ST.mainPower ? 'Grid ON' : 'Grid OFF'; }
+  if (rToggle) {
+    rToggle.className = 'epwr-toggle ' + (ST.mainPower ? 'active-green' : 'inactive');
+  }
+  // Update left phone toggle (if still present)
+  const lTsw = el('main-power-tsw');
+  const lSub = el('main-power-sub');
+  const lRow = lTsw ? lTsw.closest('.main-power-row') : null;
+  if (lTsw) { ST.mainPower ? lTsw.classList.add('on') : lTsw.classList.remove('on'); }
+  if (lSub) { lSub.textContent = ST.mainPower ? 'Grid available' : 'Power cut — grid offline'; }
+  if (lRow) { ST.mainPower ? lRow.classList.remove('off') : lRow.classList.add('off'); }
+  updateAll();
+  aiLog('info', ST.mainPower ? '🔌 Main power ON — grid available' : '⛔ Main power OFF — battery + solar only');
+}
+
+// Keep old runOptimize as no-op for any lingering references
+function runOptimize() {}
+
+function buildSimOptimize() { return []; }
+function renderOptResults() {}
+function applyOpt() {}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function toggleDev(roomId, dev) {
+  const key = roomId + ':' + dev;
+  ST.devs[key] = !ST.devs[key];
+  updateAll();
+  aiLog('user', DLBL[dev] + ' · ' + getRName(roomId) + ' → ' + (ST.devs[key]?'ON ('+PWR[dev]+'W)':'OFF'));
+}
+
+function getRName(id) {
+  const r = ROOMS.find(x => x.id === id);
+  return r ? r.name : id;
+}
+
+function getTotalPower() {
+  let w = 0;
+  ROOMS.forEach(r => r.devices.forEach(d => { if (ST.devs[r.id+':'+d]) { w += PWR[d]; } }));
+  return w;
+}
+
+function getACPower() {
+  let w = 0;
+  ROOMS.forEach(r => { if (ST.devs[r.id+':ac']) { w += PWR.ac; } });
+  return w;
+}
+
+function getLightPower() {
+  let w = 0;
+  ROOMS.forEach(r => { if (ST.devs[r.id+':light']) { w += PWR.light; } });
+  return w;
+}
+
+// ═══════════════════════════════════════════════════
+// SUN SLIDER + PRESETS
+// ═══════════════════════════════════════════════════
+function setPreset(val, name) {
+  document.getElementById('sun-slider').value = val;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  ST.preset = name;
+  onSunSlide(val);
+}
+
+function onSunSlide(val) {
+  ST.sunPosition = parseInt(val);
+  const wasDay = ST.isDay;
+  ST.isDay = ST.sunPosition >= 30;
+  ST.solar = ST.isDay;
+
+  const ico = document.getElementById('sun-ico');
+  const stateEl = document.getElementById('sun-state');
+  const kwEl = document.getElementById('sun-kw-lbl');
+
+  if (ST.isDay) {
+    ico.classList.remove('night');
+    const factor = (ST.sunPosition - 30) / 70;
+    ico.style.filter = 'brightness(' + (0.7 + factor * 0.8) + ') drop-shadow(0 0 ' + Math.round(factor * 14) + 'px rgba(251,191,36,.95))';
+    const label = ST.sunPosition > 75 ? 'Peak Day' : ST.sunPosition > 55 ? 'Bright Day' : ST.sunPosition > 40 ? 'Cloudy Day' : 'Dawn/Dusk';
+    stateEl.textContent = label;
+    stateEl.style.color = ST.sunPosition > 55 ? 'var(--yellow)' : 'var(--orange)';
+    const solarFactor = Math.max(0, (ST.sunPosition - 30) / 70);
+    ST.solarW = Math.max(0, 3500 * solarFactor);
+    kwEl.textContent = (ST.solarW / 1000).toFixed(2) + ' kW';
+    document.getElementById('map-scroll').className = 'day-sky';
+  } else {
+    ico.classList.add('night');
+    ico.style.filter = 'grayscale(1) brightness(0.25)';
+    stateEl.textContent = 'Night';
+    stateEl.style.color = 'var(--text3)';
+    ST.solarW = 0;
+    kwEl.textContent = '0 kW';
+    document.getElementById('map-scroll').className = 'night-sky';
+  }
+
+  if (wasDay !== ST.isDay) {
+    if (ST.isDay) {
+      aiLog('info', '☀️ Sunrise — Solar active (' + (ST.solarW/1000).toFixed(1) + 'kW). Flow: Solar→Inverter→Battery→House');
+    } else {
+      aiLog('info', '🌙 Night — Solar offline. Flow: Battery→House. Grid on standby.');
+    }
+  }
+
+  updateAll();
+}
+
+function toggleSolar() {
+  if (!ST.isDay) {
+    aiLog('alert', '🌙 Night — solar unavailable. Set sun slider to Day first.');
+    return;
+  }
+  ST.solar = !ST.solar;
+  // Sync right panel header toggle
+  const rTsw    = el('epwr-solar-tsw');
+  const rToggle = el('epwr-solar');
+  const rSub    = el('epwr-solar-sub');
+  if (rTsw)    { ST.solar ? rTsw.classList.add('on') : rTsw.classList.remove('on'); }
+  if (rToggle) { rToggle.className = 'epwr-toggle ' + (ST.solar ? 'active-yellow' : 'inactive'); }
+  // Sync left phone toggle
+  const lTsw = el('p-stsw');
+  const lIco  = el('p-sico');
+  if (lTsw) { ST.solar ? lTsw.classList.add('on') : lTsw.classList.remove('on'); }
+  if (lIco) { ST.solar ? lIco.classList.add('on') : lIco.classList.remove('on'); }
+  updateAll();
+  aiLog('info', 'Solar ' + (ST.solar ? 'ON — ' + (ST.solarW/1000).toFixed(2) + 'kW generating' : 'manually disabled'));
+}
+
+// ═══════════════════════════════════════════════════
+// ENERGY LOGIC — Correct priority system
+// DAY:  Solar→House, Extra solar→Battery, Battery full→Export to grid
+// NIGHT: Battery→House, Battery low + mainPower→Grid→House
+// NEVER: Grid charges battery
+// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// ENERGY LOGIC — 4-case battery state system
+//
+// CASE 1: Solar ON + Main ON  → Solar→House, surplus→Battery(CHARGING), full→Export
+// CASE 2: Solar OFF + Main ON → Grid→House, Battery=NEUTRAL (never discharges)
+// CASE 3: Solar ON + Main OFF → Solar→House, surplus→Battery(CHARGING)
+// CASE 4: Solar OFF + Main OFF → Battery→House (DISCHARGING only case)
+//
+// Battery ONLY discharges in Case 4.
+// Grid NEVER charges battery.
+// ═══════════════════════════════════════════════════
+function computeEnergy() {
+  const loadW     = getTotalPower();
+  const solActive = ST.solar && ST.isDay;
+  const solW      = solActive ? ST.solarW : 0;
+  const mainOn    = ST.mainPower;
+
+  let battChargeSolar = 0;
+  let battDischarge   = 0;
+  let battState       = 'idle';   // 'charging' | 'discharging' | 'idle'
+  let gridW           = 0;
+  let gridExport      = 0;
+
+  if (solActive && mainOn) {
+    // CASE 1: Solar ON + Main ON
+    if (solW >= loadW) {
+      const surplus = solW - loadW;
+      if (ST.battery < 99.9) {
+        battChargeSolar = Math.min(surplus, 5000);
+        battState = 'charging';
+      } else {
+        gridExport = surplus;
+        battState  = 'idle';        // full — neither charging nor discharging
+      }
+      // gridW = 0 — solar covers house, no grid needed
+    } else {
+      // Solar partial — grid covers the rest
+      const deficit = loadW - solW;
+      gridW     = deficit;
+      battState = 'idle';           // grid handles deficit; battery stays neutral
+    }
+
+  } else if (!solActive && mainOn) {
+    // CASE 2: Solar OFF + Main ON → Grid supplies everything, battery NEUTRAL
+    gridW     = loadW;
+    battState = 'idle';
+
+  } else if (solActive && !mainOn) {
+    // CASE 3: Solar ON + Main OFF → Solar handles what it can, battery charges on surplus
+    if (solW >= loadW) {
+      const surplus = solW - loadW;
+      if (ST.battery < 99.9) {
+        battChargeSolar = Math.min(surplus, 5000);
+        battState = 'charging';
+      } else {
+        battState = 'idle';         // battery full, no grid to export to
+      }
+    } else {
+      // Solar insufficient, no grid → battery MUST supply the shortfall
+      const deficit = loadW - solW;
+      if (ST.battery > 1) {
+        battDischarge = Math.min(deficit, 4000);
+        battState     = 'discharging';
+      } else {
+        battState = 'idle';         // battery dead, partial blackout
+      }
+    }
+
+  } else {
+    // CASE 4: Solar OFF + Main OFF → ONLY case battery discharges
+    if (ST.battery > 1) {
+      battDischarge = Math.min(loadW, 4000);
+      battState     = 'discharging';
+    } else {
+      battState = 'idle';           // battery dead → blackout
+    }
+  }
+
+  ST.gridW      = gridW;
+  ST.battState  = battState;        // store globally for UI
+  return { loadW, solW, battChargeSolar, battDischarge, battState, gridW, gridExport };
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════════
+function updateAll() {
+  const en = computeEnergy();
+  renderMap();
+  renderStats(en);
+  renderRoomList();
+  if (ST.curRoom) { renderDevList(ST.curRoom); }
+  renderEnergyPanel(en);
+  updateBattUI();
+  updateHeaderStats(en);
+}
+
+// FLOOR PLAN MAP
+function renderMap() {
+  const fp = document.getElementById('floor-plan');
+  // Only rebuild if needed (first call)
+  if (!fp.dataset.built) {
+    fp.style.cssText = 'position:relative;width:580px;height:332px;flex-shrink:0';
+    fp.dataset.built = '1';
+  }
+
+  ROOMS.forEach(room => {
+    let rb = document.getElementById('room-' + room.id);
+    if (!rb) {
+      rb = document.createElement('div');
+      rb.id = 'room-' + room.id;
+      rb.className = 'room';
+      rb.style.cssText = room.style;
+      rb.innerHTML = '<div class="room-label">' + room.icon + ' ' + room.name + '</div><div class="room-devs" id="devs-' + room.id + '"></div>';
+      fp.appendChild(rb);
+    }
+    const hasOn = room.devices.some(d => ST.devs[room.id+':'+d]);
+    rb.className = 'room' + (hasOn ? ' has-on' : '');
+    rb.style.cssText = room.style;
+    if (ST.curRoom === room.id) { rb.style.cssText += ';outline:2px solid var(--blue);outline-offset:2px'; }
+
+    // Rebuild devices
+    const devsEl = document.getElementById('devs-' + room.id);
+    devsEl.innerHTML = '';
+    room.devices.forEach(dev => {
+      const on = ST.devs[room.id+':'+dev];
+      const md = document.createElement('div');
+      md.className = 'mdev';
+      md.title = DBRND[dev] + ' · ' + (on ? PWR[dev]+'W' : 'off');
+      md.onclick = function() { toggleDev(room.id, dev); };
+      let inner = DICO[dev];
+      if (dev === 'fan') { inner = '<span class="fan-s">' + DICO[dev] + '</span>'; }
+      md.innerHTML = '<div class="mdev-ico ' + (on ? dev+'-on' : '') + '">' + inner + '</div>'
+        + '<div class="mdev-lbl">' + DLBL[dev] + '</div>';
+      devsEl.appendChild(md);
+    });
+
+    // Garage battery mini display
+    if (room.id === 'garage') {
+      let gb = document.getElementById('garage-batt-mini');
+      if (!gb) {
+        gb = document.createElement('div');
+        gb.id = 'garage-batt-mini';
+        gb.className = 'garage-batt';
+        rb.appendChild(gb);
+      }
+      const pct = Math.max(0, Math.min(100, Math.round(ST.battery)));
+      const bState = ST.battState || 'idle';
+      const bcolor = bState === 'charging' ? '#22d38a' : bState === 'discharging' ? (pct > 20 ? '#f59e0b' : '#ef4444') : (pct > 50 ? '#3d8a6e' : pct > 20 ? '#8a6010' : '#8a2020');
+      gb.innerHTML = '<div><div style="width:8px;height:3px;background:rgba(255,255,255,.15);border-radius:2px 2px 0 0;margin:0 auto 0px"></div>'
+        + '<div class="gb-tower"><div class="gb-fill ' + bState + '" style="height:' + pct + '%;background:' + bcolor + '"></div></div>'
+        + '</div>'
+        + '<div class="gb-info"><div class="gb-pct" style="color:' + bcolor + '">' + pct + '%</div>'
+        + '<div>' + (bState === 'charging' ? '⬆ chg' : bState === 'discharging' ? '⬇ dis' : '◌ idle') + '</div></div>';
+    }
+  });
+}
+
+function renderStats(en) {
+  const vals = Object.values(ST.devs);
+  const active = vals.filter(Boolean).length;
+  const loadW = en ? en.loadW : getTotalPower();
+  el('s-act').textContent = active;
+  el('s-tot').textContent = vals.length;
+  el('s-load').textContent = loadW >= 1000 ? (loadW/1000).toFixed(2)+'kW' : loadW+'W';
+  el('s-solv').textContent = ST.isDay ? (ST.solarW/1000).toFixed(2)+'kW' : '—';
+  el('s-sols').textContent = ST.isDay ? 'generating' : 'offline';
+  el('s-batt').textContent = Math.round(ST.battery) + '%';
+}
+
+function renderRoomList() {
+  const list = document.getElementById('room-list');
+  if (!list) { return; }
+  list.innerHTML = '';
+  ROOMS.forEach(room => {
+    const active = room.devices.filter(d => ST.devs[room.id+':'+d]).length;
+    const div = document.createElement('div');
+    div.className = 'rbtn' + (ST.curRoom===room.id ? ' sel' : '');
+    div.onclick = function() { selectRoom(room.id); };
+    div.innerHTML = '<div><div class="r-name">' + room.icon + ' ' + room.name + '</div>'
+      + '<div class="r-devs">' + room.devices.map(d=>DLBL[d]).join(' · ') + '</div></div>'
+      + '<div class="r-cnt">' + active + '</div>';
+    list.appendChild(div);
+  });
+}
+
+function renderDevList(roomId) {
+  const room = ROOMS.find(r => r.id === roomId);
+  if (!room) { return; }
+  const dlist = document.getElementById('dlist');
+  if (!dlist) { return; }
+  const active = room.devices.filter(d => ST.devs[roomId+':'+d]).length;
+  const roomW = room.devices.reduce((s,d) => s + (ST.devs[roomId+':'+d] ? PWR[d] : 0), 0);
+  el('ctrl-rname').textContent = room.icon + ' ' + room.name;
+  el('ctrl-rsub').textContent = active + ' active · ' + roomW + 'W draw';
+  dlist.innerHTML = '';
+
+  room.devices.forEach(dev => {
+    const key = roomId+':'+dev;
+    const on = ST.devs[key];
+    const reason = ST.devReasons[key];
+    const row = document.createElement('div');
+    row.className = 'drow' + (on ? ' on' : '');
+
+    let iconHtml = DICO[dev];
+    if (dev === 'fan' && on) { iconHtml = '<span class="fan-s" style="animation:fanspin .7s linear infinite;display:inline-block">' + DICO[dev] + '</span>'; }
+
+    let drawerContent = '';
+    if (reason) {
+      drawerContent = '<div class="rrow"><span class="rtag ton">ON</span><span class="rtxt">' + reason.onReason + '</span></div>'
+        + '<div class="rrow"><span class="rtag toff">OFF</span><span class="rtxt">' + reason.offReason + '</span></div>'
+        + '<div class="rrow"><span class="rtag tai">AI</span><span class="rtxt">' + reason.action + '</span></div>';
+    } else {
+      drawerContent = '<div class="rrow"><span class="rtag tai">AI</span><span class="rtxt dim">Go to AI tab → Optimize to load reasoning</span></div>';
+    }
+
+    row.innerHTML = '<div class="drow-top">'
+      + '<div class="drow-l"><div class="dico ' + (on ? dev+'-on' : '') + '">' + iconHtml + '</div>'
+      + '<div><div class="d-name">' + DLBL[dev] + '</div><div class="d-pow">' + DBRND[dev] + ' · ' + (on ? PWR[dev]+'W' : '0W (off)') + '</div></div></div>'
+      + '<div class="tsw ' + (on?'on':'') + '" onclick="event.stopPropagation();toggleDev(\'' + roomId + '\',\'' + dev + '\')"></div>'
+      + '</div>'
+      + '<div class="ai-drawer' + (reason ? ' open' : '') + '"><div class="ai-drawer-inner">' + drawerContent + '</div></div>';
+
+    row.querySelector('.drow-top').addEventListener('click', function(e) {
+      if (e.target.closest('.tsw')) { return; }
+      row.querySelector('.ai-drawer').classList.toggle('open');
+    });
+    dlist.appendChild(row);
+  });
+}
+
+function renderEnergyPanel(en) {
+  const { loadW, solW, battChargeSolar, battDischarge, battState, gridW, gridExport = 0 } = en;
+  const pct       = Math.max(0, Math.min(100, Math.round(ST.battery)));
+  const bState    = battState || ST.battState || 'idle';
+  const charging  = bState === 'charging';
+  const discharging = bState === 'discharging';
+  const idle      = bState === 'idle';
+
+  // ── CONTROLS TAB: Battery state label + color ──
+  const battLabel = el('batt-charge-label');
+  if (battLabel) {
+    if (charging)    { battLabel.textContent = '⬆ Charging';    battLabel.style.color = 'var(--green)'; }
+    else if (discharging) { battLabel.textContent = '⬇ Discharging'; battLabel.style.color = 'var(--orange)'; }
+    else             { battLabel.textContent = '◌ Idle';         battLabel.style.color = 'var(--text2)'; }
+  }
+
+  const netW = battChargeSolar - battDischarge;
+  const erate = el('e-brate');
+  if (erate) {
+    erate.textContent = (netW >= 0 ? '+' : '') + (netW/1000).toFixed(2) + ' kW';
+    erate.style.color = charging ? 'var(--green)' : discharging ? 'var(--orange)' : 'var(--text3)';
+  }
+  const estat = el('e-bstat');
+  if (estat) {
+    if (charging)    { estat.textContent = 'Solar charging';      estat.style.color = 'var(--green)'; }
+    else if (discharging) { estat.textContent = 'Supplying house'; estat.style.color = 'var(--orange)'; }
+    else             { estat.textContent = 'Idle — grid/solar active'; estat.style.color = 'var(--text3)'; }
+  }
+  const echgs = el('e-chg-solar');
+  if (echgs) { echgs.textContent = (battChargeSolar/1000).toFixed(2) + ' kW'; }
+  const edis = el('e-discharge');
+  if (edis) { edis.textContent = (battDischarge/1000).toFixed(2) + ' kW'; }
+
+  // Backup Time = energy remaining / load
+  const CAP_KWH = ST.BATT_CAPACITY_KWH;
+  const battEnergyKwh = (ST.battery / 100) * CAP_KWH;
+  const ebt = el('e-backup-time');
+  if (ebt) {
+    if (loadW > 0) {
+      const bh = battEnergyKwh / (loadW / 1000);
+      ebt.textContent = bh < 1 ? Math.round(bh * 60) + ' min' : bh.toFixed(1) + ' h';
+    } else { ebt.textContent = '∞'; }
+  }
+  const ert = el('e-runtime');
+  if (ert) {
+    if (charging && battChargeSolar > 0) {
+      const h = ((100 - ST.battery) / 100 * CAP_KWH) / (battChargeSolar/1000);
+      ert.textContent = '~' + (h<1 ? Math.round(h*60)+'min' : h.toFixed(1)+'h') + ' to full';
+    } else if (discharging && loadW > 0) {
+      const h = battEnergyKwh / (loadW/1000);
+      ert.textContent = '~' + (h<1 ? Math.round(h*60)+'min' : h.toFixed(1)+'h') + ' remain';
+    } else { ert.textContent = idle ? 'Protected by grid/solar' : 'Idle'; }
+  }
+
+  // ── FLOW TAB ──
+  setFlow('fn-solar', ST.isDay && ST.solar && solW > 0, 'solar-active', 'fn-sol-val', (solW/1000).toFixed(2)+' kW', 'var(--yellow)');
+  setFlow('fn-inv',   ST.isDay && ST.solar && solW > 0, 'active',       'fn-inv-val', ST.isDay && ST.solar ? (solW*0.96/1000).toFixed(2)+' kW' : 'Standby', 'var(--blue)');
+  setFlow('fn-batt',  true,  'batt-active', 'fn-batt-val', pct+'%', pct>50?'var(--green)':pct>20?'var(--orange)':'var(--red)');
+  setFlow('fn-house', loadW>0, 'active',    'fn-house-val', (loadW/1000).toFixed(2)+' kW', 'var(--red)');
+
+  // Flow lines — inv→batt only when charging; batt→house ONLY when discharging
+  setFlowLine('fl-sol-inv',    ST.isDay && ST.solar && solW > 0, 'fa-sol-inv',    'active-y');
+  setFlowLine('fl-inv-batt',   charging,                         'fa-inv-batt',   'active-y');
+  setFlowLine('fl-batt-house', discharging,                      'fa-batt-house', 'active-g');
+
+  // Grid node
+  const gridNeeded = gridW > 0;
+  const fngrid = el('fn-grid');
+  const fcgrid = el('fc-grid');
+  if (fngrid) { fngrid.style.display = gridNeeded ? '' : 'none'; }
+  if (fcgrid) { fcgrid.style.display = gridNeeded ? '' : 'none'; }
+  if (gridNeeded) {
+    const fgsub = el('fn-grid-sub'); if (fgsub) { fgsub.textContent = 'BESCOM · ' + (gridW/1000).toFixed(2) + 'kW'; }
+    const fgval = el('fn-grid-val'); if (fgval) { fgval.textContent = (gridW/1000).toFixed(2) + ' kW'; }
+  }
+  // fn-batt sub text — shows battery state clearly
+  const fbs = el('fn-batt-sub');
+  if (fbs) {
+    if (charging)      { fbs.textContent = '⬆ Charging +' + (battChargeSolar/1000).toFixed(2) + 'kW'; }
+    else if (discharging) { fbs.textContent = '⬇ Discharging −' + (battDischarge/1000).toFixed(2) + 'kW'; }
+    else               { fbs.textContent = '◌ Idle — ' + pct + '% stored'; }
+  }
+
+  // Status summary in Flow tab
+  const statusLines = [];
+  if (charging)        { statusLines.push('⚡ Battery charging from solar: +'+(battChargeSolar/1000).toFixed(2)+' kW'); }
+  if (discharging)     { statusLines.push('🔋 Battery supplying house: '+(battDischarge/1000).toFixed(2)+' kW'); }
+  if (idle && !gridNeeded && !charging) { statusLines.push('◌ Battery idle — maintained at ' + pct + '%'); }
+  if (gridNeeded)      { statusLines.push('🔌 Grid supplying: '+(gridW/1000).toFixed(2)+' kW'); }
+  if (gridExport > 0)  { statusLines.push('📤 Exporting surplus: '+(gridExport/1000).toFixed(2)+' kW'); }
+  if (!ST.mainPower)   { statusLines.push('⛔ Main power OFF — grid unavailable'); }
+  if (statusLines.length === 0) { statusLines.push('✓ System balanced'); }
+  const cst = el('e-charge-status-text');
+  if (cst) { cst.innerHTML = statusLines.join('<br>'); }
+
+  // ── STATS TAB ──
+  const esi = el('e-solar-in');   if (esi)  { esi.textContent  = (solW/1000).toFixed(2) + ' kW'; }
+  const eio = el('e-inv-out');    if (eio)  { eio.textContent  = (solW*0.96/1000).toFixed(2) + ' kW'; }
+  const eef = el('e-eff');        if (eef)  { eef.textContent  = ST.isDay && ST.solar && solW>0 ? '96%' : '—'; }
+  const ess = el('e-sol-status'); if (ess)  {
+    ess.textContent = !ST.isDay ? 'Night' : (!ST.solar ? 'Off' : solW > 0 ? 'Active' : 'Idle');
+    ess.style.color = ST.isDay && ST.solar && solW>0 ? 'var(--green)' : 'var(--text3)';
+  }
+  const egd = el('e-grid-draw');  if (egd)  { egd.textContent  = (gridW/1000).toFixed(2) + ' kW'; }
+  const egs = el('e-grid-status'); if (egs) {
+    egs.textContent = !ST.mainPower ? 'OFF (power cut)' : gridNeeded ? 'Supplying house' : 'Standby';
+    egs.style.color = !ST.mainPower ? 'var(--red)' : gridNeeded ? 'var(--purple)' : 'var(--green)';
+  }
+  const ege = el('e-grid-export'); if (ege) { ege.textContent  = gridExport > 0 ? (gridExport/1000).toFixed(2) + ' kW' : '0 kW'; }
+  const ene = el('e-net-export');  if (ene) { ene.textContent  = gridExport > 0 ? '+' + (gridExport/1000).toFixed(2) + ' kW' : '0 kW'; }
+  const ecg = el('e-chg-grid');   if (ecg) { ecg.textContent  = 'Never (policy)'; }
+  const elt = el('e-load-total'); if (elt) { elt.textContent  = (loadW/1000).toFixed(2) + ' kW'; }
+  const ela = el('e-load-ac');    if (ela) { ela.textContent  = (getACPower()/1000).toFixed(2) + ' kW'; }
+  const ell = el('e-load-lights');if (ell) { ell.textContent  = getLightPower() + ' W'; }
+  const elo = el('e-load-other'); if (elo) { elo.textContent  = Math.max(0, loadW - getACPower() - getLightPower()) + ' W'; }
+
+  // ── PHONE HOME: battery + solar row ──
+  const si = el('p-sico'), stsw = el('p-stsw'), ss = el('p-sstat');
+  if (ST.isDay && ST.solar && solW > 0) {
+    if (si)   { si.classList.add('on'); }
+    if (stsw) { stsw.classList.add('on'); }
+    if (ss)   { ss.textContent = (solW/1000).toFixed(2) + ' kW generating'; }
+  } else {
+    if (si)   { si.classList.remove('on'); }
+    if (stsw) { stsw.classList.remove('on'); }
+    if (ss)   { ss.textContent = !ST.isDay ? 'Solar offline (night)' : 'Solar toggled off'; }
+  }
+  const pbs = el('p-bstat');
+  if (pbs) {
+    if (charging)      { pbs.textContent = '⬆ Charging';    pbs.style.color = 'var(--green)'; }
+    else if (discharging) { pbs.textContent = '⬇ Discharging'; pbs.style.color = 'var(--orange)'; }
+    else               { pbs.textContent = '◌ Idle';         pbs.style.color = 'var(--text2)'; }
+  }
+  const pbe = el('p-beta');
+  if (pbe) {
+    if (charging && battChargeSolar > 0) {
+      const h = ((100 - ST.battery)/100 * CAP_KWH) / (battChargeSolar/1000);
+      pbe.textContent = '~' + (h<1 ? Math.round(h*60)+'min' : h.toFixed(1)+'h') + ' to full';
+    } else if (discharging && loadW > 0) {
+      const h = battEnergyKwh / (loadW/1000);
+      pbe.textContent = '~' + (h<1 ? Math.round(h*60)+'min' : h.toFixed(1)+'h') + ' remain';
+    } else { pbe.textContent = idle ? 'Grid/solar protecting battery' : 'Idle'; }
+  }
+}
+
+// Update always-visible header stats in right panel
+function updateHeaderStats(en) {
+  const solW = en ? en.solW : 0;
+  const loadW = en ? en.loadW : getTotalPower();
+  const pct = Math.max(0, Math.min(100, Math.round(ST.battery)));
+  const hs = el('hdr-solar'); if (hs) { hs.textContent = (solW/1000).toFixed(2) + ' kW'; }
+  const hl = el('hdr-load');  if (hl) { hl.textContent = (loadW/1000).toFixed(2) + ' kW'; }
+  const hb = el('hdr-batt');  if (hb) { hb.textContent = pct + '%'; }
+  // Sync right panel toggle states with ST
+  const rmt = el('epwr-main-tsw');    if (rmt)  { ST.mainPower ? rmt.classList.add('on') : rmt.classList.remove('on'); }
+  const rmw = el('epwr-main');        if (rmw)  { rmw.className = 'epwr-toggle ' + (ST.mainPower ? 'active-green' : 'inactive'); }
+  const rms = el('epwr-main-sub');    if (rms)  { rms.textContent = ST.mainPower ? 'Grid ON' : 'Grid OFF'; }
+  const rst = el('epwr-solar-tsw');   if (rst)  { (ST.solar && ST.isDay) ? rst.classList.add('on') : rst.classList.remove('on'); }
+  const rsw = el('epwr-solar');       if (rsw)  { rsw.className = 'epwr-toggle ' + (ST.solar && ST.isDay ? 'active-yellow' : 'inactive'); }
+  const rss = el('epwr-solar-sub');   if (rss)  { rss.textContent = ST.isDay && ST.solar ? (solW/1000).toFixed(2) + ' kW' : 'Offline'; }
+  // Update sun-kw-lbl in Controls tab
+  const skw = el('sun-kw-lbl'); if (skw) { skw.textContent = ST.isDay && ST.solar ? (solW/1000).toFixed(2) + ' kW' : '0 kW'; }
+}
+
+function setFlow(nodeId, active, cls, valId, valText, color) {
+  const node = el(nodeId);
+  if (!node) { return; }
+  node.className = 'eflow-node' + (active ? ' ' + cls : '');
+  const valEl = el(valId);
+  if (valEl) { valEl.textContent = valText; valEl.style.color = color; }
+}
+
+function setFlowLine(lineId, active, arrowId, arrowCls) {
+  const line = el(lineId);
+  if (line) {
+    line.className = line.className.replace(/\bactive\b/g,'').trim();
+    if (active) { line.classList.add('active'); }
+  }
+  const arrow = el(arrowId);
+  if (arrow) {
+    arrow.className = 'flow-arrow' + (active ? ' ' + arrowCls : '');
+  }
+}
+
+function updateBattUI() {
+  const pct   = Math.max(0, Math.min(100, Math.round(ST.battery)));
+  const state = ST.battState || 'idle'; // 'charging' | 'discharging' | 'idle'
+
+  // Color reflects both state and charge level
+  let fillColor;
+  if (state === 'charging') {
+    fillColor = 'linear-gradient(90deg,var(--green),#5ef5b8)';
+  } else if (state === 'discharging') {
+    fillColor = pct > 20
+      ? 'linear-gradient(90deg,var(--orange),#fde68a)'
+      : 'linear-gradient(90deg,var(--red),#f87171)';
+  } else {
+    // idle — muted level-based color
+    fillColor = pct > 50
+      ? 'linear-gradient(90deg,#1a8c60,#3ecf8e)'
+      : pct > 20
+        ? 'linear-gradient(90deg,#a06010,#d4961a)'
+        : 'linear-gradient(90deg,#8b1a1a,#c43333)';
+  }
+
+  // Both bars use batt-bar-fill as base class + state modifier
+  ['p-bbar','e-bbar'].forEach(id => {
+    const e = el(id);
+    if (!e) { return; }
+    e.style.width      = pct + '%';
+    e.style.background = fillColor;
+    e.className        = 'batt-bar-fill batt-' + state;
+  });
+
+  ['p-bpct','e-bpct','s-batt'].forEach(id => {
+    const e = el(id); if (e) { e.textContent = pct + '%'; }
+  });
+  const fbv = el('fn-batt-val'); if (fbv) { fbv.textContent = pct + '%'; }
+
+  // Header battery stat — color coded by state
+  const hb = el('hdr-batt');
+  if (hb) {
+    hb.textContent = pct + '%';
+    hb.style.color = state === 'charging' ? 'var(--green)' : state === 'discharging' ? 'var(--orange)' : 'var(--text2)';
+  }
+}
+
+function el(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════════
+// THEME TOGGLE — Dark / Light
+// ═══════════════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-theme');
+  const ico = el('theme-ico');
+  const lbl = el('theme-lbl');
+  if (ico) { ico.textContent = isLight ? '☀️' : '🌙'; }
+  if (lbl) { lbl.textContent = isLight ? 'Dark'  : 'Light'; }
+  localStorage.setItem('megamp-theme', isLight ? 'light' : 'dark');
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+function showS(id, navEl) {
+  document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); });
+  document.getElementById('s-'+id).classList.add('active');
+  document.querySelectorAll('.pnt').forEach(n => { n.classList.remove('active'); });
+  if (navEl) { navEl.classList.add('active'); }
+}
+
+function showETab(id, navEl) {
+  document.querySelectorAll('.epane').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  document.querySelectorAll('.etab').forEach(t => { t.classList.remove('active'); });
+  const pane = document.getElementById('epane-' + id);
+  if (pane) { pane.classList.add('active'); pane.style.display = 'flex'; }
+  if (navEl) { navEl.classList.add('active'); }
+}
+
+function selectRoom(roomId) {
+  ST.curRoom = roomId;
+  const ct = el('ctrl-tab');
+  ct.style.display = '';
+  showS('controls', ct);
+  renderDevList(roomId);
+  renderRoomList();
+  renderMap();
+}
+
+function goBack() {
+  ST.curRoom = null;
+  el('ctrl-tab').style.display = 'none';
+  showS('rooms', document.querySelectorAll('.pnt')[1]);
+  renderRoomList();
+  renderMap();
+}
+
+// ═══════════════════════════════════════════════════
+// MODES
+// ═══════════════════════════════════════════════════
+const MLBLS = { normal:'Normal', performance:'Performance', saver:'Saver', essential:'Essential', custom:'Custom' };
+
+function setMode(mode, btn) {
+  ST.mode = mode;
+  // Clear all mode button highlights
+  document.querySelectorAll('.mbtn').forEach(b => { b.classList.remove('active'); });
+  document.querySelectorAll('.mode-big-btn').forEach(b => { b.classList.remove('active'); });
+  // Activate the matching big button
+  const bigBtnId = 'mb-' + mode;
+  const bigBtn = el(bigBtnId);
+  if (bigBtn) { bigBtn.classList.add('active'); }
+  if (btn && btn.classList && btn.classList.contains('mbtn')) { btn.classList.add('active'); }
+  el('p-mbadge').textContent = MLBLS[mode] || mode;
+  // Update subtitle
+  const sub = el('greet-sub');
+  if (sub) { sub.textContent = (MLBLS[mode] || mode) + ' mode active · Bengaluru'; }
+  aiLog('info', 'Mode → ' + (MLBLS[mode]||mode) + ' — applying changes...');
+
+  setTimeout(function() {
+    ROOMS.forEach(r => {
+      r.devices.forEach(d => {
+        const k = r.id+':'+d;
+        if (mode === 'performance') { ST.devs[k] = true; }
+        else if (mode === 'saver')  { ST.devs[k] = d === 'light' && r.essential.includes('light'); }
+        else if (mode === 'essential') { ST.devs[k] = r.essential.includes(d); }
+        else if (mode === 'custom') { ST.devs[k] = ST.customSet.has(k); }
+        // normal: keep current state
+      });
+    });
+    updateAll();
+    aiLog('info', (MLBLS[mode]||mode) + ' applied · Load: ' + (getTotalPower()/1000).toFixed(2) + 'kW');
+    // Trigger AI automatically — navigates to AI tab to show response
+    runAutoAI(MLBLS[mode] || mode);
+    const aiTab = document.querySelectorAll('.pnt')[3];
+    if (aiTab) { showS('ai', aiTab); }
+  }, 100);
+}
+
+function openCustom() {
+  const grid = el('cdev-grid');
+  grid.innerHTML = '';
+  ROOMS.forEach(r => {
+    r.devices.forEach(d => {
+      const k = r.id+':'+d;
+      const item = document.createElement('div');
+      item.className = 'm-item' + (ST.customSet.has(k) ? ' sel' : '');
+      item.innerHTML = DICO[d] + ' ' + r.name.replace('Bedroom','Bed') + ' ' + DLBL[d];
+      item.onclick = function() {
+        if (ST.customSet.has(k)) { ST.customSet.delete(k); item.classList.remove('sel'); }
+        else { ST.customSet.add(k); item.classList.add('sel'); }
+      };
+      grid.appendChild(item);
+    });
+  });
+  el('cmodal').classList.add('open');
+}
+
+function closeCustom() { el('cmodal').classList.remove('open'); }
+
+function applyCustom() {
+  closeCustom();
+  document.querySelectorAll('.mbtn').forEach(b => { b.classList.remove('active'); });
+  document.querySelectorAll('.mode-big-btn').forEach(b => { b.classList.remove('active'); });
+  const customBigBtn = el('mb-custom');
+  if (customBigBtn) { customBigBtn.classList.add('active'); }
+  setMode('custom', null);
+}
+
+// ═══════════════════════════════════════════════════
+// AI LOG
+// ═══════════════════════════════════════════════════
+function aiLog(type, msg) {
+  const log = el('ai-log');
+  if (!log) { return; }
+  const now = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const e = document.createElement('div');
+  e.className = 'lentry ' + type;
+  e.innerHTML = '<div class="ltime">' + now + '</div><div class="lmsg">' + msg + '</div>';
+  log.prepend(e);
+  while (log.children.length > 40) { log.removeChild(log.lastChild); }
+}
+
+async function periodicInsight() {
+  const loadW = getTotalPower();
+  const batt  = Math.round(ST.battery);
+  const solW  = ST.isDay ? ST.solarW : 0;
+  const en    = computeEnergy();
+
+  if (ST.ollamaOK) {
+    try {
+      const flowDesc = ST.isDay
+        ? 'DAY: Solar(' + (solW/1000).toFixed(1) + 'kW)→Inverter→Battery(' + batt + '%)→House(' + (loadW/1000).toFixed(2) + 'kW)'
+        : 'NIGHT: Battery(' + batt + '%)→House(' + (loadW/1000).toFixed(2) + 'kW)';
+      const gridDesc = en.gridW > 0 ? ', Grid supplying ' + (en.gridW/1000).toFixed(2) + 'kW' : '';
+      const p = flowDesc + gridDesc + ', sun=' + ST.sunPosition + '%, mode=' + ST.mode + ', Bengaluru. One energy insight under 15 words. No quotes.';
+      const resp = await ollamaCall(p, 'You are a smart home energy assistant. Reply in exactly one short sentence. No quotes or punctuation at end.');
+      if (resp) { aiLog('decision', '🤖 ' + resp.replace(/^["""\'`]+|["""\'`]+$/g,'').trim()); }
+    } catch(e) { /* silent */ }
+  } else {
+    const bState = ST.battState || 'idle';
+    const msgs = [];
+    if (batt < 15 && bState === 'discharging') { msgs.push('⚠️ Battery critical (' + batt + '%) — switch to Essential mode immediately'); }
+    else if (batt < 25 && bState === 'discharging') { msgs.push('🔋 Battery ' + batt + '% discharging at ' + (loadW/1000).toFixed(2) + 'kW — solar and grid unavailable'); }
+    else if (en.gridW > 0) { msgs.push('🔌 Grid supplying ' + (en.gridW/1000).toFixed(2) + 'kW — solar insufficient for ' + (loadW/1000).toFixed(2) + 'kW load'); }
+    else if (bState === 'charging') { msgs.push('☀️ Solar surplus ' + ((solW-loadW)/1000).toFixed(2) + 'kW — battery charging at +' + (en.battChargeSolar/1000).toFixed(2) + 'kW'); }
+    else if (bState === 'idle' && ST.mainPower && !ST.isDay) { msgs.push('🔌 Night mode — grid supplying ' + (loadW/1000).toFixed(2) + 'kW, battery protected at ' + batt + '%'); }
+    else if (ST.sunPosition > 70 && ST.isDay) { msgs.push('Peak solar at ' + ST.sunPosition + '% — ideal time for high loads (geyser 2kW, AC 1.25kW)'); }
+    else { msgs.push('System stable — battery ' + batt + '% ' + bState + ', load ' + (loadW/1000).toFixed(2) + 'kW, ' + (ST.isDay ? 'solar ' + (solW/1000).toFixed(1) + 'kW' : 'night mode')); }
+    aiLog('decision', '🤖 ' + msgs[0]);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// BATTERY SIMULATION — 10 kWh, demo speed 35×
+// Only changes battery when battState is not 'idle'
+// ═══════════════════════════════════════════════════
+function simBattery() {
+  // Update solar variance first (smooth sinusoidal)
+  if (ST.solar && ST.isDay) {
+    const t = Date.now() / 14000;
+    const factor = Math.max(0, (ST.sunPosition - 30) / 70);
+    const base   = 3500 * factor;
+    ST.solarW = Math.max(0, base + Math.sin(t) * 140 + Math.cos(t * 0.7) * 60);
+  } else {
+    ST.solarW = 0;
+  }
+
+  const en      = computeEnergy();   // battState already set in ST by computeEnergy
+  const CAP_WH  = ST.BATT_CAPACITY_KWH * 1000; // 10,000 Wh
+  const TICK_S  = 5;
+  const SPEED   = 35; // demo multiplier
+
+  // Only move battery% when actively charging or discharging
+  if (en.battState === 'charging' && en.battChargeSolar > 0) {
+    const delta = (en.battChargeSolar / CAP_WH) * (TICK_S / 3600) * 100 * SPEED;
+    ST.battery  = Math.min(100, ST.battery + delta);
+  } else if (en.battState === 'discharging' && en.battDischarge > 0) {
+    const delta = (en.battDischarge / CAP_WH) * (TICK_S / 3600) * 100 * SPEED;
+    ST.battery  = Math.max(0, ST.battery - delta);
+  }
+  // idle → battery % unchanged
+
+  updateBattUI();
+  const en2 = computeEnergy();
+  renderEnergyPanel(en2);
+  renderStats(en2);
+  renderMap();
+  updateHeaderStats(en2);
+}
+
+function updateClock() {
+  const clk = el('clock');
+  if (clk) { clk.textContent = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }); }
+  // Update greeting based on time of day
+  const h = new Date().getHours();
+  const gEl = el('greeting-text');
+  if (gEl) {
+    if (h >= 5 && h < 12)      { gEl.textContent = 'Good morning ☀️'; }
+    else if (h >= 12 && h < 17){ gEl.textContent = 'Good afternoon 🌤️'; }
+    else if (h >= 17 && h < 21){ gEl.textContent = 'Good evening 🌇'; }
+    else                        { gEl.textContent = 'Good night 🌙'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+
+function init() {
+  // Restore saved theme
+  if (localStorage.getItem('megamp-theme') === 'light') {
+    document.body.classList.add('light-theme');
+    const ico = el('theme-ico'); if (ico) { ico.textContent = '☀️'; }
+    const lbl = el('theme-lbl'); if (lbl) { lbl.textContent = 'Dark'; }
+  }
+  // Boot energy panel — show Controls tab by default
+  document.querySelectorAll('.epane').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+  const firstPane = el('epane-controls');
+  if (firstPane) { firstPane.classList.add('active'); firstPane.style.display = 'flex'; }
+
+  // Boot sun to daytime (75% = bright day)
+  onSunSlide(75);
+
+  // Highlight Normal mode button
+  const normalBtn = el('mb-normal');
+  if (normalBtn) { normalBtn.classList.add('active'); }
+
+  // Init right panel toggle UI state
+  const rmt = el('epwr-main-tsw'); if (rmt && ST.mainPower) { rmt.classList.add('on'); }
+  const rst = el('epwr-solar-tsw'); if (rst && ST.solar) { rst.classList.add('on'); }
+
+  updateAll();
+  updateClock();
+
+  aiLog('info', '⌂ MEGAMP Smart Home initialized');
+  aiLog('info', '📋 BEE specs: LED 9W · Fan 28W · AC 1250W · Geyser 2000W');
+  aiLog('info', '🔋 10kWh battery @ ' + Math.round(ST.battery) + '% — charges in ~30s (demo speed)');
+  aiLog('info', '⚡ Energy: Solar→House→Battery→Export. Grid never charges battery.');
+  aiLog('info', '🤖 AI runs automatically on mode selection — see AI tab');
+
+  checkOllama();
+  setInterval(simBattery, 5000);
+  setInterval(updateClock, 1000);
+  setInterval(periodicInsight, 20000);
+  setInterval(checkOllama, 60000);
+  setTimeout(periodicInsight, 6000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<!-- ── FIREBASE SDK ── -->
+<script type="module">
+import { initializeApp }           from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getDatabase, ref, set, get, onValue, push, serverTimestamp }
+                                   from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+// ── CONFIG ──────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyDTQQ3tJ9bjSQGwObZVLsb0pF4nd6D9dJg",
+  authDomain:        "megamp-29e9e.firebaseapp.com",
+  databaseURL:       "https://megamp-29e9e-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "megamp-29e9e",
+  storageBucket:     "megamp-29e9e.firebasestorage.app",
+  messagingSenderId: "130273285486",
+  appId:             "1:130273285486:web:3e975ae582c2238941dd7f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── REFS ─────────────────────────────────────────────────────────────────
+const stateRef   = ref(db, 'state');
+const aiReqRef   = ref(db, 'ai_request');
+const aiRespRef  = ref(db, 'ai_response');
+const aiLogRef   = ref(db, 'ai_log');
+
+// ── PUSH STATE TO FIREBASE every 5s ──────────────────────────────────────
+function pushState() {
+  if (typeof ST === 'undefined') { return; }
+  const devices = {};
+  Object.entries(ST.devs).forEach(([k, v]) => { devices[k.replace(':', '__')] = v; });
+  set(stateRef, {
+    battery:     ST.battery,
+    solarW:      ST.solarW,
+    loadW:       typeof getTotalPower === 'function' ? getTotalPower() : 0,
+    isDay:       ST.isDay,
+    mainPower:   ST.mainPower,
+    battState:   ST.battState || 'idle',
+    sunPosition: ST.sunPosition,
+    mode:        ST.mode,
+    solar:       ST.solar,
+    devices,
+    updatedAt:   Date.now()
+  }).catch(() => {}); // silent fail if offline
+}
+
+// ── TRIGGER AI REQUEST via Firebase (Python bridge picks this up) ─────────
+window.firebaseRequestAI = function(type, mode) {
+  set(aiReqRef, {
+    id:        Date.now(),
+    type,
+    mode,
+    timestamp: Date.now()
+  }).catch(() => {});
+};
+
+// ── LISTEN FOR AI RESPONSE from Python bridge ─────────────────────────────
+onValue(aiRespRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data || typeof aiLog === 'undefined') { return; }
+
+  const tsNow = Date.now();
+  // Ignore stale responses older than 30s
+  if (data.timestamp && (tsNow - data.timestamp) > 30000) { return; }
+
+  if (data.type === 'mode_change') {
+    // Update AI status card
+    const modeEl  = document.getElementById('ai-status-mode');
+    const msgEl   = document.getElementById('ai-status-msg');
+    const decEl   = document.getElementById('ai-decisions');
+    const thinking = document.getElementById('ai-thinking');
+    if (modeEl)   { modeEl.textContent = (data.mode || '') + ' Mode'; }
+    if (msgEl)    { msgEl.textContent  = data.summary || ''; }
+    if (thinking) { thinking.style.display = 'none'; }
+
+    if (decEl && Array.isArray(data.decisions) && data.decisions.length > 0) {
+      decEl.innerHTML = '';
+      const icons = ['✅', '⚡', '🔋'];
+      const types = ['info', 'info', 'warn'];
+      data.decisions.forEach((dec, i) => {
+        const item = document.createElement('div');
+        item.className = 'ai-decision-item ' + (types[i] || 'info');
+        item.innerHTML = '<span class="ai-dec-ico">' + (icons[i] || '→') + '</span>'
+                       + '<span class="ai-dec-txt">' + dec + '</span>';
+        decEl.appendChild(item);
+      });
+    }
+    aiLog('decision', '🤖 ' + (data.summary || 'AI response received'));
+
+  } else if (data.type === 'insight') {
+    if (data.message) { aiLog('decision', '🤖 ' + data.message); }
+  }
+});
+
+// ── LISTEN FOR LOG ENTRIES from Python bridge ──────────────────────────────
+onValue(aiLogRef, (snapshot) => {
+  const logs = snapshot.val();
+  if (!logs || typeof aiLog === 'undefined') { return; }
+  // Only process the most recent entry
+  const entries = Object.values(logs);
+  const latest  = entries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+  if (latest && latest.msg && (Date.now() - (latest.timestamp || 0)) < 8000) {
+    // Already handled via ai_response listener — skip duplicates
+  }
+});
+
+// ── OVERRIDE runAutoAI to ALSO trigger Python bridge via Firebase ──────────
+const _origRunAutoAI = window.runAutoAI;
+window.runAutoAI = async function(modeName) {
+  // Run local simulation immediately (instant feedback)
+  if (typeof _origRunAutoAI === 'function') { await _origRunAutoAI(modeName); }
+  // Also send to Firebase → Python bridge → Ollama (async, arrives when ready)
+  window.firebaseRequestAI('mode_change', modeName);
+};
+
+// ── FIREBASE STATUS INDICATOR ─────────────────────────────────────────────
+function updateFirebaseStatus(ok) {
+  const dot = document.getElementById('odot');
+  const lbl = document.getElementById('olbl');
+  if (!dot || !lbl) { return; }
+  if (ok) {
+    dot.className = 'odot ok';
+    lbl.textContent = 'Firebase + llama3';
+  }
+}
+
+// ── TEST CONNECTION ───────────────────────────────────────────────────────
+get(stateRef).then(() => {
+  updateFirebaseStatus(true);
+  console.log('[MegAMP] Firebase connected ✓');
+}).catch((e) => {
+  console.warn('[MegAMP] Firebase offline:', e.message);
+});
+
+// ── START STATE SYNC ──────────────────────────────────────────────────────
+// Wait for main app to init, then start pushing state
+setTimeout(() => {
+  pushState();
+  setInterval(pushState, 5000);
+}, 2000);
+</script>
+</body>
+</html>
